@@ -8,7 +8,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      ignoreEnvFile: true, // env_file로만 환경변수 로딩
+      //ignoreEnvFile: true, // env_file로만 환경변수 로딩
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
