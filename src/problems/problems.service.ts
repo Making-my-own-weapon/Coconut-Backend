@@ -6,6 +6,7 @@ import { RoomProblem } from './entities/room-problem.entity';
 import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
 import { AssignRoomProblemDto } from './dtos/assign-room-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
+import { ProblemSummaryDto } from './dtos/problem-summary.dto';
 
 @Injectable()
 export class ProblemsService {
@@ -24,7 +25,13 @@ export class ProblemsService {
       executionTimeLimitMs: dto.timeLimitMs,
       memoryLimitKb: dto.memoryLimitKb,
       description: dto.description,
-      // solveTimeLimitMin: dto.solveTimeLimitMin, // 필요하면 DTO에 추가
+      solveTimeLimitMin: dto.solveTimeLimitMin,
+      source: dto.source,
+      categories: dto.categories,
+      testcases: dto.testCases.map((tc) => ({
+        inputTc: tc.input,
+        outputTc: tc.output,
+      })),
     });
     return this.problemRepo.save(problem);
   }
@@ -49,7 +56,24 @@ export class ProblemsService {
     });
   }
 
-  /** 4) 방별 문제 목록 조회 (RoomProblem ↔ Problem join) */
+  /** 4) 문제 정보 요약본 가져오기 */
+  async getProblemSummaries(): Promise<ProblemSummaryDto[]> {
+    const raws = await this.problemRepo.find({
+      select: ['problemId', 'title', 'source', 'categories'],
+    });
+
+    // 엔티티 배열을 DTO 배열로 변환 (여기선 필드명이 같아 바로 반환해도 무방합니다)
+    return raws.map((p) => {
+      const dto = new ProblemSummaryDto();
+      dto.problemId = p.problemId;
+      dto.title = p.title;
+      dto.source = p.source;
+      dto.categories = p.categories;
+      return dto;
+    });
+  }
+
+  /** 5) 방별 문제 목록 조회 (RoomProblem ↔ Problem join) */
   async getProblemsByRoomId(roomId: number): Promise<Problem[]> {
     const links = await this.roomProblemRepo.find({
       where: { roomId },
@@ -58,8 +82,8 @@ export class ProblemsService {
     return links.map((link) => link.problem);
   }
 
-  /** 5) 방별 특정 문제 상세 조회 */
-  async getProblemDetailByRoodId(
+  /** 6) 방별 특정 문제 상세 조회 */
+  async getProblemDetailByRoomId(
     roomId: number,
     pid: number,
   ): Promise<Problem> {
@@ -71,7 +95,7 @@ export class ProblemsService {
     return link.problem;
   }
 
-  /** 6) 방별 문제 정보 일부 수정 */
+  /** 7) 방별 문제 정보 일부 수정 */
   async updateProblemDetailByRoomId(
     roomId: number,
     pid: number,

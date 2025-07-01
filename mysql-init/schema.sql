@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS problems (
   memory_limit_kb        INT     NOT NULL,                  -- 메모리 제한(KB)
   description            TEXT    NOT NULL,                  -- 문제 설명
   solve_time_limit_min   INT,                               -- 풀이 제한(분)
+  source                 ENUM('My','BOJ') NOT NULL DEFAULT 'My',  -- 출처(My vs BOJ)
+  categories             JSON NOT NULL DEFAULT JSON_ARRAY(),  -- 카테고리 배열
   created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                           ON UPDATE CURRENT_TIMESTAMP,
