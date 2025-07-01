@@ -51,7 +51,7 @@ export class Problem {
   source: ProblemSource;
 
   // 카테고리 배열 (JSON)
-  @Column({ type: 'json', default: () => "'[]'" })
+  @Column({ type: 'json' })
   categories: string[];
 
   // 테스트케이스 (testcases.problem_id → problems.problem_id)
