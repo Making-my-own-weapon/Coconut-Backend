@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   max_participants INT NOT NULL,
   invite_code     VARCHAR(255) NOT NULL UNIQUE,
   status          ENUM('WAITING','IN_PROGRESS','FINISHED') NOT NULL DEFAULT 'WAITING',
-  creator_id      INT NOT NULL,
+  creator_id      INT NOT NULL UNIQUE,   -- 인당 방 하나만 생성 가능
   participants    JSON,
   problems        JSON,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

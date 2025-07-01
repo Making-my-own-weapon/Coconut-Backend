@@ -19,6 +19,14 @@ export class RoomsService {
     createRoomDto: CreateRoomDto,
     creatorId: number,
   ): Promise<{ roomId: number; inviteCode: string }> {
+    // 중복 체크
+    const existingRoom = await this.roomRepository.findOne({
+      where: { creatorId },
+    });
+    if (existingRoom) {
+      throw new BadRequestException('이미 생성한 방이 있습니다.');
+    }
+
     const inviteCode = this.generateInviteCode();
 
     console.log('=== 방 생성 시작 ===');
