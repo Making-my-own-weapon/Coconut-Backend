@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { EditorModule } from './editor/editor.module';
+import { ProblemsModule } from './problems/problems.module';
 
 @Module({
   imports: [
@@ -32,8 +30,7 @@ import { EditorModule } from './editor/editor.module';
       }),
     }),
     EditorModule,
+    ProblemsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
