@@ -12,6 +12,7 @@ import { ProblemsService } from './problems.service';
 import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
 import { AssignRoomProblemDto } from './dtos/assign-room-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
+import { ProblemSummaryDto } from './dtos/problem-summary.dto';
 
 @Controller('api/v1')
 export class ProblemsController {
@@ -38,22 +39,28 @@ export class ProblemsController {
     return this.svc.getAllProblems();
   }
 
-  /** 4) 방별 문제 목록 조회 */
+  /** 4) 문제 정보 요약본 가져오기 */
+  @Get('db/problems/summary')
+  getProblemSummaries(): Promise<ProblemSummaryDto[]> {
+    return this.svc.getProblemSummaries();
+  }
+
+  /** 5) 방별 문제 목록 조회 */
   @Get('rooms/:roomId/problems')
   getProblemsByRoomId(@Param('roomId', ParseIntPipe) roomId: number) {
     return this.svc.getProblemsByRoomId(roomId);
   }
 
-  /** 5) 방별 특정 문제 상세 조회 */
+  /** 6) 방별 특정 문제 상세 조회 */
   @Get('rooms/:roomId/problems/:pid')
-  getProblemDetailByRoodId(
+  getProblemDetailByRoomId(
     @Param('roomId', ParseIntPipe) roomId: number,
     @Param('pid', ParseIntPipe) pid: number,
   ) {
-    return this.svc.getProblemDetailByRoodId(roomId, pid);
+    return this.svc.getProblemDetailByRoomId(roomId, pid);
   }
 
-  /** 6) 방별 문제 정보 일부 수정 */
+  /** 7) 방별 문제 정보 일부 수정 */
   @Patch('rooms/:roomId/problems/:pid')
   updateProblemDetailByRoomId(
     @Param('roomId', ParseIntPipe) roomId: number,
