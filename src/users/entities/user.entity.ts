@@ -4,7 +4,7 @@ import { Problem } from '../../problems/entities/problem.entity';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn() id: number;
+  @PrimaryGeneratedColumn({ name: 'user_id' }) id: number;
   @Column({ nullable: true }) dummy: string;
   @OneToMany(() => Problem, (problem) => problem.creator)
   createdProblems: Problem[];

@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ProblemsModule } from './problems/problems.module';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { RoomsModule } from './rooms/rooms.module';
+// import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -25,10 +27,12 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
         retryAttempts: 10,
         retryDelay: 3000,
 
-        namingStrategy: new SnakeNamingStrategy(),
+        // namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
     ProblemsModule,
+    RoomsModule,
+    UsersModule,
   ],
 })
 export class AppModule {}
