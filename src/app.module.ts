@@ -1,13 +1,17 @@
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { ProblemsModule } from './problems/problems.module';
+import { APP_PIPE } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '../.env',
       //ignoreEnvFile: true, // env_file로만 환경변수 로딩
     }),
     TypeOrmModule.forRootAsync({
@@ -28,7 +32,16 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
         namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
+    AuthModule,
+    UsersModule,
     ProblemsModule,
+  ],
+  controllers: [],
+  providers: [
+    {
+      provide: APP_PIPE, // 전역 파이프 설정
+      useClass: ValidationPipe,
+    },
   ],
 })
 export class AppModule {}
