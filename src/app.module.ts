@@ -1,14 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ProblemsModule } from './problems/problems.module';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+import { EditorModule } from './editor/editor.module';
+import { ProblemsModule } from './problems/problems.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      //ignoreEnvFile: true, // env_file로만 환경변수 로딩
+      // ignoreEnvFile: true, // env_file로만 환경변수 로딩
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -28,6 +29,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
         namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
+    EditorModule,
     ProblemsModule,
   ],
 })
