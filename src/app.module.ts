@@ -24,7 +24,7 @@ import { UsersModule } from './users/users.module';
         )}/${cfg.get<string>('DB_DATABASE')}?charset=utf8mb4`,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true', // dev only
-        retryAttempts: 10,
+        retryAttempts: 20,
         retryDelay: 3000,
 
         // namingStrategy: new SnakeNamingStrategy(),

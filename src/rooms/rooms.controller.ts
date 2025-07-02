@@ -22,17 +22,17 @@ export class RoomsController {
   // 클래스 외부에서 접근 불가 내부에서만 쓸 것
   constructor(private readonly roomsService: RoomsService) {}
 
-  @Post()
+  @Post('create')
   create(
     @Body() createRoomDto: CreateRoomDto,
     @Headers('user-id') userIdHeader: string,
   ) {
-    console.log('=== Controller에서 받은 데이터 ===');
-    console.log('createRoomDto:', createRoomDto);
-    console.log('createRoomDto type:', typeof createRoomDto);
-    console.log('createRoomDto keys:', Object.keys(createRoomDto));
-    console.log('createRoomDto stringified:', JSON.stringify(createRoomDto));
-    console.log('userIdHeader:', userIdHeader);
+    // console.log('=== Controller에서 받은 데이터 ===');
+    // console.log('createRoomDto:', createRoomDto);
+    // console.log('createRoomDto type:', typeof createRoomDto);
+    // console.log('createRoomDto keys:', Object.keys(createRoomDto));
+    // console.log('createRoomDto stringified:', JSON.stringify(createRoomDto));
+    // console.log('userIdHeader:', userIdHeader);
     const creatorId = Number(userIdHeader);
     return this.roomsService.createRoom(createRoomDto, creatorId);
   }

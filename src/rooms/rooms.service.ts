@@ -29,11 +29,6 @@ export class RoomsService {
 
     const inviteCode = this.generateInviteCode();
 
-    console.log('=== 방 생성 시작 ===');
-    console.log('createRoomDto:', createRoomDto);
-    console.log('creatorId:', creatorId);
-    console.log('inviteCode:', inviteCode);
-
     const room = this.roomRepository.create({
       title: createRoomDto.title,
       description: createRoomDto.description,
