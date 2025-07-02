@@ -158,13 +158,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 4) problems 테이블 (BIGINT 유지)
 CREATE TABLE IF NOT EXISTS problems (
-  problem_id             BIGINT AUTO_INCREMENT PRIMARY KEY,
-  title                  VARCHAR(255) NOT NULL,
-  creator_id             INT NULL,
-  execution_time_limit_ms INT NOT NULL,
-  memory_limit_kb        INT NOT NULL,
-  description            TEXT NOT NULL,
-  solve_time_limit_min   INT,
+  problem_id            BIGINT AUTO_INCREMENT PRIMARY KEY,  -- 문제 고유 ID
+  title                 VARCHAR(255) NOT NULL,              -- 문제 제목
+  creator_id            INT  NULL,                       -- 등록자(user.user_id) not null로 변경 해야함
+  execution_time_limit_ms INT     NOT NULL,                  -- 실행 제한(ms)
+  memory_limit_kb        INT     NOT NULL,                  -- 메모리 제한(KB)
+  description            TEXT    NOT NULL,                  -- 문제 설명
+  solve_time_limit_min   INT,                               -- 풀이 제한(분)
+  source                 ENUM('My','BOJ') NOT NULL DEFAULT 'My',  -- 출처(My vs BOJ)
+  categories             JSON NOT NULL,  -- 카테고리 배열
   created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_problems_creator
