@@ -10,6 +10,7 @@ import {
 
 @Entity('users')
 export class User {
+
   @PrimaryGeneratedColumn({ name: 'user_id' }) // DB 컬럼명은 'user_id'
   id: number; // 코드 내에서는 'id'로 사용
 
@@ -37,6 +38,7 @@ export class User {
   updatedAt: Date;
 
   // Problem 엔티티와의 관계 (스키마의 fk_problems_creator에 해당)
+
   @OneToMany(() => Problem, (problem) => problem.creator)
   createdProblems: Problem[];
 

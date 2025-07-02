@@ -1,11 +1,53 @@
-// src/rooms/entities/room.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
-import { RoomProblem } from '../../problems/entities/room-problem.entity';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+export enum RoomStatus {
+  WAITING = 'WAITING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  FINISHED = 'FINISHED',
+}
 
 @Entity('rooms')
 export class Room {
-  @PrimaryGeneratedColumn() id: number;
-  @Column({ nullable: true }) dummy: string;
-  @OneToMany(() => RoomProblem, (rp) => rp.room)
-  problems: RoomProblem[];
+  @PrimaryGeneratedColumn({ name: 'room_id' })
+  roomId: number;
+
+  @Column()
+  title: string;
+
+  @Column('text') // TEXT 타입 명시
+  description: string;
+
+  @Column({ name: 'max_participants' })
+  maxParticipants: number;
+
+  @Column({ name: 'invite_code' })
+  inviteCode: string;
+
+  @Column({
+    type: 'enum',
+    enum: RoomStatus,
+    default: RoomStatus.WAITING,
+  })
+  status: RoomStatus;
+
+  @Column({ name: 'creator_id' })
+  creatorId: number;
+
+  @Column('simple-json', { nullable: true })
+  participants: { userId: number; name: string }[];
+
+  @Column('simple-json', { nullable: true })
+  problems: any[];
+
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }

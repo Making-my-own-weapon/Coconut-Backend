@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProblemsModule } from './problems/problems.module';
+import { RoomsModule } from './rooms/rooms.module';
 import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
@@ -27,16 +28,18 @@ import { EditorModule } from './editor/editor.module';
         )}/${cfg.get<string>('DB_DATABASE')}?charset=utf8mb4`,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: cfg.get<string>('DB_SYNCHRONIZE') === 'true', // dev only
-        retryAttempts: 10,
+        retryAttempts: 20,
         retryDelay: 3000,
 
-        namingStrategy: new SnakeNamingStrategy(),
+        // namingStrategy: new SnakeNamingStrategy(),
       }),
     }),
     AuthModule,
     UsersModule,
     EditorModule,
     ProblemsModule,
+    RoomsModule,
+    UsersModule,
   ],
   controllers: [],
   providers: [
