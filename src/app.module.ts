@@ -4,10 +4,11 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProblemsModule } from './problems/problems.module';
 import { RoomsModule } from './rooms/rooms.module';
-import { APP_PIPE } from '@nestjs/core';
+import { APP_PIPE, APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+// import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { EditorModule } from './editor/editor.module';
+import { PublicGuard } from './auth/guards/public.guard';
 
 @Module({
   imports: [
@@ -46,6 +47,10 @@ import { EditorModule } from './editor/editor.module';
     {
       provide: APP_PIPE, // 전역 파이프 설정
       useClass: ValidationPipe,
+    },
+    {
+      provide: APP_GUARD, // 전역 Guard 설정
+      useClass: PublicGuard,
     },
   ],
 })

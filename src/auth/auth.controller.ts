@@ -15,6 +15,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Request, Response } from 'express';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
+import { Public } from './decorators/public.decorator';
 
 // 1. JWT 토큰에서 추출한 사용자 정보의 타입을 정의합니다.
 interface UserPayload {
@@ -36,15 +37,17 @@ interface RequestWithUser extends Request {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // 회원가입
+  // 회원가입 - 공개 API
   @Post('signup')
+  @Public()
   @HttpCode(HttpStatus.CREATED)
   async signup(@Body() createUserDto: CreateUserDto) {
     return this.authService.signup(createUserDto);
   }
 
-  // 로그인
+  // 로그인 - 공개 API
   @Post('login')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() loginUserDto: LoginUserDto,
