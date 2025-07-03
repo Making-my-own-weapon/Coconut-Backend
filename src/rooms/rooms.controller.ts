@@ -43,6 +43,9 @@ export class RoomsController {
   /** 초대 코드로 수업 참가 */
   @Post('join')
   joinRoom(@Body() joinRoomDto: JoinRoomDto, @Req() req: RequestWithUser) {
+    console.log('--- Controller: /rooms/join 요청 받음 ---');
+    console.log('초대 코드:', joinRoomDto.inviteCode);
+
     const userId = req.user.id;
     return this.roomsService.joinRoom(joinRoomDto.inviteCode, userId);
   }

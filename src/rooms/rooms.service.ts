@@ -47,10 +47,11 @@ export class RoomsService {
 
   // 초대코드로 방 참여
   async joinRoom(inviteCode: string, userId: number) {
-    console.log('joinRoom 호출됨:', { inviteCode, userId });
+    console.log('--- Service: joinRoom 호출됨 ---');
+    console.log(`서비스가 받은 초대 코드: ${inviteCode}`);
 
     const room = await this.roomRepository.findOne({ where: { inviteCode } });
-    console.log('찾은 방:', room);
+    console.log('DB에서 찾은 방:', room);
 
     if (!room) {
       throw new BadRequestException('유효하지 않은 초대코드입니다.');
@@ -79,16 +80,27 @@ export class RoomsService {
     };
   }
 
-  // 방 정보 조회
   async getRoomInfo(roomId: number, requesterId: number) {
     const room = await this.roomRepository.findOne({ where: { roomId } });
-    if (!room || room.creatorId !== requesterId) {
+    if (!room) {
       return null;
     }
 
+    // 요청자가 참여자 목록에 있는지 확인
+    const isParticipant = room.participants.some(
+      (p) => p.userId === requesterId,
+    );
+
+    // 방 생성자도 아니고, 참여자도 아니면 접근을 거부합니다.
+    if (room.creatorId !== requesterId && !isParticipant) {
+      return null;
+    }
+
+    // 권한이 있으면 방 정보를 반환합니다.
     return {
       roomId: room.roomId,
       title: room.title,
+      inviteCode: room.inviteCode,
       status: room.status,
       participants: room.participants || [],
       problems: room.problems || [],

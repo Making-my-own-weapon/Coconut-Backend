@@ -65,6 +65,7 @@ export class AuthController {
 
   // 3) 토큰 리프레시도 기본 가드는 스킵 → 리프레시 가드만 적용
   @Post('refresh')
+  @Public()
   @UseGuards(JwtRefreshGuard)
   @HttpCode(HttpStatus.OK)
   // 👇 req 타입을 RequestWithUser로 지정합니다.
