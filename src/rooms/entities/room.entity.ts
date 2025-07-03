@@ -26,7 +26,7 @@ export class Room {
   @Column({ name: 'max_participants' })
   maxParticipants: number;
 
-  @Column({ name: 'invite_code' })
+  @Column({ name: 'invite_code', unique: true })
   inviteCode: string;
 
   @Column({
