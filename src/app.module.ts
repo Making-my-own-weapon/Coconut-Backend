@@ -6,7 +6,7 @@ import { ProblemsModule } from './problems/problems.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
+//import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { EditorModule } from './editor/editor.module';
 import { HealthController } from './health/health.controller';
 

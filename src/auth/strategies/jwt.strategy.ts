@@ -21,7 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // 2. 만료된 토큰을 거부할지 여부: false로 설정하면 만료된 토큰도 허용되므로, 반드시 false로 둡니다.
       ignoreExpiration: false,
       // 3. 토큰 검증에 사용할 비밀 키
-      secretOrKey: configService.get('JWT_SECRET')!,
+      secretOrKey: configService.get<string>('JWT_SECRET')!,
     });
   }
 

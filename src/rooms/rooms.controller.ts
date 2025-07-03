@@ -6,9 +6,10 @@ import {
   Get,
   Patch,
   Param,
-  Headers,
+  Req,
   ForbiddenException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { RoomsService } from './rooms.service';
 
 // DTO import
@@ -16,43 +17,44 @@ import { CreateRoomDto } from './dtos/create-room.dto';
 import { JoinRoomDto } from './dtos/join-room.dto';
 import { UpdateRoomStatusDto } from './dtos/update-room-status.dto';
 
+// req.user 타입 정의 (필요하다면 별도 파일로 뽑아도 좋습니다)
+interface RequestWithUser extends Request {
+  user: {
+    id: number;
+    email: string;
+    // ... 그 외 페이로드 필드
+  };
+}
+
 @Controller('api/v1/rooms')
 export class RoomsController {
-  // 의존성 주입  RoomsSevrice를 주입받고 roomsService라는 이름으로 사용할 것
-  // 클래스 외부에서 접근 불가 내부에서만 쓸 것
   constructor(private readonly roomsService: RoomsService) {}
 
+  /** 수업(방) 생성 */
   @Post('create')
   create(
     @Body() createRoomDto: CreateRoomDto,
-    @Headers('user-id') userIdHeader: string,
+    @Req() req: RequestWithUser, // 헤더 대신 req.user 사용
   ) {
-    // console.log('=== Controller에서 받은 데이터 ===');
-    // console.log('createRoomDto:', createRoomDto);
-    // console.log('createRoomDto type:', typeof createRoomDto);
-    // console.log('createRoomDto keys:', Object.keys(createRoomDto));
-    // console.log('createRoomDto stringified:', JSON.stringify(createRoomDto));
-    // console.log('userIdHeader:', userIdHeader);
-    const creatorId = Number(userIdHeader);
+    const creatorId = req.user.id;
     return this.roomsService.createRoom(createRoomDto, creatorId);
   }
 
+  /** 초대 코드로 수업 참가 */
   @Post('join')
-  joinRoom(
-    @Body() joinRoomDto: JoinRoomDto,
-    @Headers('user-id') userIdHeader: string,
-  ) {
-    const userId = Number(userIdHeader);
+  joinRoom(@Body() joinRoomDto: JoinRoomDto, @Req() req: RequestWithUser) {
+    const userId = req.user.id;
     return this.roomsService.joinRoom(joinRoomDto.inviteCode, userId);
   }
 
+  /** 방 정보 조회 (호스트만) */
   @Get(':roomId')
   async getRoomInfo(
     @Param('roomId') roomId: string,
-    @Headers('user-id') userIdHeader: string,
+    @Req() req: RequestWithUser,
   ) {
     const id = Number(roomId);
-    const userId = Number(userIdHeader);
+    const userId = req.user.id;
     const roomInfo = await this.roomsService.getRoomInfo(id, userId);
     if (!roomInfo) {
       throw new ForbiddenException('방 생성자만 접근할 수 있습니다.');
@@ -60,13 +62,14 @@ export class RoomsController {
     return roomInfo;
   }
 
+  /** 방 상태 변경 (호스트만) */
   @Patch(':roomId')
   async updateRoomStatus(
     @Param('roomId') roomId: string,
     @Body() updateDto: UpdateRoomStatusDto,
-    @Headers('user-id') userIdHeader: string,
+    @Req() req: RequestWithUser,
   ) {
-    const userId = Number(userIdHeader);
+    const userId = req.user.id;
     const success = await this.roomsService.updateRoomStatus(
       Number(roomId),
       userId,
