@@ -11,8 +11,8 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: coconut-backend
-  ECS_CLUSTER: coconut-backend-cluster
-  ECS_SERVICE: backend-service
+  ECS_CLUSTER: backend-cluster
+  ECS_SERVICE: coconut-backend-service
   ECS_TASK_DEFINITION: coconut-backend-task
 
 jobs:
