@@ -1,0 +1,65 @@
+# ecs를 사용한 자동 배포 예시
+
+name: Deploy to ECS (Rolling Update)
+
+on:
+  push:
+    branches:
+      - release
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: coconut-backend
+  ECS_CLUSTER: coconut-backend-cluster
+  ECS_SERVICE: coconut-backend-service
+  ECS_TASK_DEFINITION: coconut-backend-task
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ 코드 가져오기
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2️⃣ AWS 자격 증명 설정
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3️⃣ ECR 로그인
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4️⃣ Docker 이미지 빌드 + 태그 + ECR Push
+      - name: Build, tag, and push image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          cd Coconut-Backend
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      # 5️⃣ ECS Task Definition 갱신
+      - name: Fill in the new image ID in the ECS task definition
+        id: render-task
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: Coconut-Backend/ecs-task-definition.json
+          container-name: coconut-backend-container
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      # 6️⃣ ECS 서비스에 새 Task Definition 적용 (롤링 업데이트)
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.render-task.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
