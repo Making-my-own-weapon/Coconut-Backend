@@ -7,6 +7,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { EditorModule } from './editor/editor.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { EditorModule } from './editor/editor.module';
     EditorModule,
     ProblemsModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_PIPE, // 전역 파이프 설정
