@@ -5,8 +5,7 @@ name: Deploy to ECS (Rolling Update)
 on:
   push:
     branches:
-      # - release
-      - deploy-test
+      - release
 
 env:
   AWS_REGION: ap-northeast-2
