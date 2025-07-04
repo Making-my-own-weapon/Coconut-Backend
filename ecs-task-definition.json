@@ -1,4 +1,4 @@
-{ 
+{
   "family": "coconut-backend-task",
   "networkMode": "bridge",
   "requiresCompatibilities": ["EC2"],
