@@ -46,15 +46,25 @@ export class RoomsService {
   }
 
   /** 2) 초대코드로 방 참가 */
-  async joinRoom(inviteCode: string, userId: number) {
+  async joinRoom(inviteCode: string, userId: number, userName: string) {
     const room = await this.roomRepo.findOne({ where: { inviteCode } });
     if (!room) {
       throw new BadRequestException('유효하지 않은 초대코드입니다.');
     }
 
+    if (room.creatorId === userId) {
+      throw new BadRequestException(
+        '자신이 생성한 수업에는 참여할 수 없습니다.',
+      );
+    }
+
+    if (room.participants.length >= room.maxParticipants) {
+      throw new BadRequestException('수업 정원이 가득 찼습니다.');
+    }
+
     room.participants = room.participants || [];
     if (!room.participants.some((p) => p.userId === userId)) {
-      room.participants.push({ userId, name: `사용자${userId}` });
+      room.participants.push({ userId, name: userName });
       await this.roomRepo.save(room);
     }
 
