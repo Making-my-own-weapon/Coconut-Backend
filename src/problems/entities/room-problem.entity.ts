@@ -10,6 +10,7 @@ export class RoomProblem {
   @PrimaryColumn({ name: 'problem_id' })
   problemId: number; // FK to problems.problemId
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   @ManyToOne(() => Room, (room) => room.problems, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'room_id' })
   room: Room;

@@ -32,10 +32,7 @@ export class RoomsController {
 
   /** 수업(방) 생성 */
   @Post('create')
-  create(
-    @Body() createRoomDto: CreateRoomDto,
-    @Req() req: RequestWithUser, // 헤더 대신 req.user 사용
-  ) {
+  create(@Body() createRoomDto: CreateRoomDto, @Req() req: RequestWithUser) {
     const creatorId = req.user.id;
     return this.roomsService.createRoom(createRoomDto, creatorId);
   }
@@ -43,14 +40,13 @@ export class RoomsController {
   /** 초대 코드로 수업 참가 */
   @Post('join')
   joinRoom(@Body() joinRoomDto: JoinRoomDto, @Req() req: RequestWithUser) {
-    console.log('--- Controller: /rooms/join 요청 받음 ---');
-    console.log('초대 코드:', joinRoomDto.inviteCode);
-
     const userId = req.user.id;
     return this.roomsService.joinRoom(joinRoomDto.inviteCode, userId);
   }
 
-  /** 방 정보 조회 (호스트만) */
+  /**
+   * 방 정보 + 할당된 문제들 조회 (호스트만 접근 가능)
+   */
   @Get(':roomId')
   async getRoomInfo(
     @Param('roomId') roomId: string,

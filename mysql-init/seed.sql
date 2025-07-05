@@ -9,38 +9,17 @@ VALUES
   ('Bob',   'bob@example.com',   'hashed_password_2', NULL, NULL);
 
 -- 2) Rooms 예시 세팅 (문제 배정용)
-INSERT INTO rooms (host_id, title, invite_code, status)
+INSERT INTO rooms (title, description, max_participants, invite_code, status, creator_id, participants, problems)
 VALUES
-  (1, 'Intro to Algorithms', 'ALG1234567', 'WAITING'),
-  (2, 'Data Structures 101', 'DSC7654321', 'WAITING');
+  ('Intro to Algorithms', '알고리즘 입문', 10, 'ALG1234567', 'WAITING', 1, '[]', '[]'),
+  ('Data Structures 101', '자료구조 기초', 10, 'DSC7654321', 'WAITING', 2, '[]', '[]');
 
 -- 3) Problems 기본 문제 3개
-INSERT INTO problems (title, creator_id, execution_time_limit_ms, memory_limit_kb, description, solve_time_limit_min)
+INSERT INTO problems (title, creator_id, execution_time_limit_ms, memory_limit_kb, description, solve_time_limit_min, source, categories)
 VALUES
-  (
-    '두 수 더하기',
-    1,
-    1000,
-    65536,
-    '두 개의 정수가 주어졌을 때, 두 수의 합을 출력하는 문제입니다.',
-    10
-  ),
-  (
-    '팩토리얼 계산',
-    1,
-    2000,
-    65536,
-    'n! (1 ≤ n ≤ 20)을 계산하는 문제입니다.',
-    15
-  ),
-  (
-    '피보나치 수열',
-    2,
-    2000,
-    65536,
-    'n번째 피보나치 수(1 ≤ n ≤ 50)를 계산하는 문제입니다.',
-    15
-  );
+  ('두 수 더하기', 1, 1000, 65536, '두 개의 정수가 주어졌을 때, 두 수의 합을 출력하는 문제입니다.', 10, 'My', '["수학"]'),
+  ('팩토리얼 계산', 1, 2000, 65536, 'n! (1 ≤ n ≤ 20)을 계산하는 문제입니다.', 15, 'My', '["수학"]'),
+  ('피보나치 수열', 2, 2000, 65536, 'n번째 피보나치 수(1 ≤ n ≤ 50)를 계산하는 문제입니다.', 15, 'My', '["수학"]');
 
 -- 4) Room ↔ Problem 매핑 예시
 INSERT INTO room_problems (room_id, problem_id)

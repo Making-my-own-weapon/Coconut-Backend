@@ -1,75 +1,61 @@
+// src/rooms/rooms.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Room, RoomStatus } from './entities/room.entity';
+import { RoomProblem } from '../problems/entities/room-problem.entity';
+import { Problem } from '../problems/entities/problem.entity';
 import { CreateRoomDto } from './dtos/create-room.dto';
 
 @Injectable()
 export class RoomsService {
   constructor(
     @InjectRepository(Room)
-    private readonly roomRepository: Repository<Room>,
+    private readonly roomRepo: Repository<Room>,
+    @InjectRepository(RoomProblem)
+    private readonly rpRepo: Repository<RoomProblem>,
+    @InjectRepository(Problem)
+    private readonly problemRepo: Repository<Problem>,
   ) {}
 
   private generateInviteCode(): string {
     return Math.random().toString(36).slice(2, 10);
   }
 
+  /** 1) 방 생성 */
   async createRoom(
-    createRoomDto: CreateRoomDto,
+    dto: CreateRoomDto,
     creatorId: number,
   ): Promise<{ roomId: number; inviteCode: string }> {
-    // 중복 체크
-    const existingRoom = await this.roomRepository.findOne({
-      where: { creatorId },
-    });
-    if (existingRoom) {
+    const existing = await this.roomRepo.findOne({ where: { creatorId } });
+    if (existing) {
       throw new BadRequestException('이미 생성한 방이 있습니다.');
     }
-
     const inviteCode = this.generateInviteCode();
-
-    const room = this.roomRepository.create({
-      title: createRoomDto.title,
-      description: createRoomDto.description,
-      maxParticipants: createRoomDto.maxParticipants, // ← 명시적 매핑
+    const room = this.roomRepo.create({
+      title: dto.title,
+      description: dto.description,
+      maxParticipants: dto.maxParticipants,
       inviteCode,
       status: RoomStatus.WAITING,
       creatorId,
       participants: [],
-      problems: [],
     });
-
-    const savedRoom = await this.roomRepository.save(room);
-    console.log('방 생성됨:', savedRoom);
-    return { roomId: savedRoom.roomId, inviteCode };
+    const saved = await this.roomRepo.save(room);
+    return { roomId: saved.roomId, inviteCode };
   }
 
-  // 초대코드로 방 참여
+  /** 2) 초대코드로 방 참가 */
   async joinRoom(inviteCode: string, userId: number) {
-    console.log('--- Service: joinRoom 호출됨 ---');
-    console.log(`서비스가 받은 초대 코드: ${inviteCode}`);
-
-    const room = await this.roomRepository.findOne({ where: { inviteCode } });
-    console.log('DB에서 찾은 방:', room);
-
+    const room = await this.roomRepo.findOne({ where: { inviteCode } });
     if (!room) {
       throw new BadRequestException('유효하지 않은 초대코드입니다.');
     }
 
-    if (!room.participants) {
-      room.participants = [];
-      console.log('participants 초기화됨');
-    }
-
-    const alreadyJoined = room.participants.some((p) => p.userId === userId);
-    console.log('이미 참여 중인지:', alreadyJoined);
-
-    if (!alreadyJoined) {
+    room.participants = room.participants || [];
+    if (!room.participants.some((p) => p.userId === userId)) {
       room.participants.push({ userId, name: `사용자${userId}` });
-      console.log('참가자 추가됨:', room.participants);
-      await this.roomRepository.save(room);
-      console.log('방 저장 완료');
+      await this.roomRepo.save(room);
     }
 
     return {
@@ -80,46 +66,61 @@ export class RoomsService {
     };
   }
 
+  /** 3) 방 상세 조회 — 조인 테이블에서 문제를 가져오도록 변경 */
   async getRoomInfo(roomId: number, requesterId: number) {
-    const room = await this.roomRepository.findOne({ where: { roomId } });
-    if (!room) {
-      return null;
-    }
-
-    // 요청자가 참여자 목록에 있는지 확인
-    const isParticipant = room.participants.some(
-      (p) => p.userId === requesterId,
-    );
+    const room = await this.roomRepo.findOne({ where: { roomId } });
+    if (!room) return null;
 
     // 방 생성자도 아니고, 참여자도 아니면 접근을 거부합니다.
+    const isParticipant = room.participants?.some(
+      (p) => p.userId === requesterId,
+    );
     if (room.creatorId !== requesterId && !isParticipant) {
       return null;
     }
 
-    // 권한이 있으면 방 정보를 반환합니다.
+    // 조인 테이블에서 연결된 Problem 엔티티를 직접 조회
+    const links = await this.rpRepo.find({
+      where: { roomId },
+      relations: ['problem', 'problem.testcases'],
+    });
+    const problems = links.map((link) => {
+      const allTcs = link.problem.testcases.map((tc) => ({
+        id: tc.id,
+        input: tc.inputTc,
+        output: tc.outputTc,
+      }));
+      return {
+        ...link.problem,
+        // 테스트케이스는 최대 3개까지만 잘라서 넘겨줍니다
+        testCases: allTcs.slice(0, 3),
+      };
+    });
+
     return {
       roomId: room.roomId,
       title: room.title,
       inviteCode: room.inviteCode,
       status: room.status,
       participants: room.participants || [],
-      problems: room.problems || [],
+      problems, // 여기로 할당된 문제 리스트를 보내줍니다
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
     };
   }
 
-  // 방 상태 변경 (시작 / 종료)
+  /** 4) 방 상태 변경 */
   async updateRoomStatus(
     roomId: number,
     requesterId: number,
     newStatus: RoomStatus,
   ): Promise<boolean> {
-    const room = await this.roomRepository.findOne({ where: { roomId } });
+    const room = await this.roomRepo.findOne({ where: { roomId } });
     if (!room || room.creatorId !== requesterId) {
       return false;
     }
-
     room.status = newStatus;
-    await this.roomRepository.save(room);
+    await this.roomRepo.save(room);
     return true;
   }
 }

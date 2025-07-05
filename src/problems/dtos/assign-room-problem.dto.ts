@@ -1,5 +1,8 @@
-import { IsInt } from 'class-validator';
+import { IsArray, IsInt, ArrayNotEmpty } from 'class-validator';
 
 export class AssignRoomProblemDto {
-  @IsInt() problemId: number;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  problemIds: number[];
 }

@@ -9,7 +9,6 @@ import { Room } from '../rooms/entities/room.entity';
 import { Problem } from './entities/problem.entity';
 import { RoomProblem } from './entities/room-problem.entity';
 import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
-import { AssignRoomProblemDto } from './dtos/assign-room-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
 import { ProblemSummaryDto } from './dtos/problem-summary.dto';
 
@@ -37,8 +36,8 @@ export class ProblemsService {
       source: dto.source,
       categories: dto.categories,
       testcases: dto.testCases.map((tc) => ({
-        inputTc: tc.input,
-        outputTc: tc.output,
+        inputTc: tc.inputTc,
+        outputTc: tc.outputTc,
       })),
     });
     return this.problemRepo.save(problem);
@@ -47,21 +46,21 @@ export class ProblemsService {
   /** 2) 방에 문제 할당 (호스트만)*/
   async assignProblemToRoom(
     roomId: number,
-    dto: AssignRoomProblemDto,
+    problemIds: number[],
     userId: number,
-  ): Promise<RoomProblem> {
+  ): Promise<RoomProblem[]> {
     // 1) 방 존재 및 호스트 여부 확인
     const room = await this.roomRepo.findOneBy({ roomId });
     if (!room) throw new NotFoundException('Room not found');
     if (room.creatorId !== userId)
       throw new ForbiddenException('방 생성자만 문제를 할당할 수 있습니다.');
+    console.log('[AssignRoom]', { roomId, problemIds, userId });
 
-    // 2) 문제-방 링크 생성
-    const link = this.roomProblemRepo.create({
-      roomId,
-      problemId: dto.problemId,
-    });
-    return this.roomProblemRepo.save(link);
+    // 2) 문제-방 링크 생성(매핑 후 여러번 링크)
+    const links = problemIds.map((problemId) =>
+      this.roomProblemRepo.create({ roomId, problemId }),
+    );
+    return this.roomProblemRepo.save(links);
   }
 
   /** 3) DB의 모든 문제 목록 조회 */
