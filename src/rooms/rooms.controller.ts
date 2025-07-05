@@ -41,7 +41,11 @@ export class RoomsController {
   @Post('join')
   joinRoom(@Body() joinRoomDto: JoinRoomDto, @Req() req: RequestWithUser) {
     const userId = req.user.id;
-    return this.roomsService.joinRoom(joinRoomDto.inviteCode, userId);
+    return this.roomsService.joinRoom(
+      joinRoomDto.inviteCode,
+      userId,
+      joinRoomDto.userName,
+    );
   }
 
   /**
