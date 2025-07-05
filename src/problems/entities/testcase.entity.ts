@@ -18,13 +18,18 @@ export class Testcase {
   @JoinColumn({ name: 'problem_id' })
   problem: Problem;
 
-  @Column({ type: 'varchar', length: 255 }) inputTc: string;
-  @Column({ type: 'varchar', length: 255 }) outputTc: string;
+  @Column({ name: 'input_tc', type: 'varchar', length: 255 }) inputTc: string;
+  @Column({ name: 'output_tc', type: 'varchar', length: 255 }) outputTc: string;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'created_at',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   createdAt: Date;
 
   @Column({
+    name: 'updated_at',
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP',
     onUpdate: 'CURRENT_TIMESTAMP',

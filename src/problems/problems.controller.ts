@@ -38,7 +38,7 @@ export class ProblemsController {
     @Req() req: RequestWithUser,
   ) {
     const userId = req.user.id;
-    return this.svc.assignProblemToRoom(roomId, dto, userId);
+    return this.svc.assignProblemToRoom(roomId, dto.problemIds, userId);
   }
 
   /** 3) DB의 모든 문제 목록 조회 */

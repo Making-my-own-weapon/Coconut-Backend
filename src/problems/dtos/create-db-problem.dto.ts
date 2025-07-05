@@ -14,10 +14,10 @@ import { ProblemSource } from '../entities/problem.entity';
 
 class TestCaseDto {
   @IsString()
-  input: string;
+  inputTc: string;
 
   @IsString()
-  output: string;
+  outputTc: string;
 }
 
 export class CreateDbProblemDto {
