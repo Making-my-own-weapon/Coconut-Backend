@@ -4,19 +4,22 @@ import { Repository } from 'typeorm';
 import { SQSClient, SendMessageCommand } from '@aws-sdk/client-sqs';
 import { Submission } from './entities/submission.entity';
 import { Testcase } from './entities/testcase.entity';
+import { Problem } from '../problems/entities/problem.entity';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 
 @Injectable()
 export class SubmissionService {
   private sqsClient: SQSClient;
   private readonly QUEUE_URL =
-    'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-heavy-queue';
+    'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-light-queue';
 
   constructor(
     @InjectRepository(Submission)
     private submissionRepository: Repository<Submission>,
     @InjectRepository(Testcase)
     private testcaseRepository: Repository<Testcase>,
+    @InjectRepository(Problem)
+    private problemRepository: Repository<Problem>,
   ) {
     // AWS SQS 클라이언트 초기화
     this.sqsClient = new SQSClient({
@@ -72,6 +75,15 @@ export class SubmissionService {
   }
 
   private async sendGradingMessage(submission: Submission): Promise<void> {
+    // DB에서 해당 문제 정보 조회 (제한시간 포함)
+    const problem = await this.problemRepository.findOne({
+      where: { problemId: parseInt(submission.problem_id) },
+    });
+
+    if (!problem) {
+      throw new Error(`Problem ${submission.problem_id}를 찾을 수 없습니다.`);
+    }
+
     // DB에서 해당 문제의 모든 테스트케이스 조회
     const testcases = await this.testcaseRepository.find({
       where: { problem_id: submission.problem_id },
@@ -91,7 +103,8 @@ export class SubmissionService {
       submission_id: submission.submission_id,
       problem_id: parseInt(submission.problem_id), // string을 number로 변환
       code: submission.code,
-      complexity: 'light', // 기본값
+      language: submission.language, // 언어 정보 추가
+      time_limit_ms: problem.executionTimeLimitMs, // DB에서 가져온 실제 제한시간
       testcase_keys: testcase_keys,
     };
 
