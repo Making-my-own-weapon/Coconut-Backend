@@ -40,7 +40,11 @@ export class Room {
   creatorId: number;
 
   @Column('simple-json', { nullable: true })
-  participants: { userId: number; name: string }[];
+  participants: {
+    userId: number;
+    name: string;
+    userType: 'teacher' | 'student';
+  }[];
 
   @Column('simple-json', { nullable: true })
   problems: any[];

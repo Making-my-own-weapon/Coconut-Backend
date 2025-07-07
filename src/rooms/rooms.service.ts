@@ -6,6 +6,7 @@ import { Room, RoomStatus } from './entities/room.entity';
 import { RoomProblem } from '../problems/entities/room-problem.entity';
 import { Problem } from '../problems/entities/problem.entity';
 import { CreateRoomDto } from './dtos/create-room.dto';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class RoomsService {
@@ -16,6 +17,7 @@ export class RoomsService {
     private readonly rpRepo: Repository<RoomProblem>,
     @InjectRepository(Problem)
     private readonly problemRepo: Repository<Problem>,
+    private readonly usersService: UsersService,
   ) {}
 
   private generateInviteCode(): string {
@@ -31,15 +33,24 @@ export class RoomsService {
     if (existing) {
       throw new BadRequestException('이미 생성한 방이 있습니다.');
     }
+
+    // 선생님 정보 가져오기
+    const teacher = await this.usersService.findOneById(creatorId);
+    if (!teacher) {
+      throw new BadRequestException('사용자 정보를 찾을 수 없습니다.');
+    }
+
     const inviteCode = this.generateInviteCode();
     const room = this.roomRepo.create({
       title: dto.title,
       description: dto.description,
-      maxParticipants: dto.maxParticipants,
+      maxParticipants: dto.maxParticipants + 1, // 학생 수 + 선생님 1명
       inviteCode,
       status: RoomStatus.WAITING,
       creatorId,
-      participants: [],
+      participants: [
+        { userId: creatorId, name: teacher.name, userType: 'teacher' },
+      ],
     });
     const saved = await this.roomRepo.save(room);
     return { roomId: saved.roomId, inviteCode };
@@ -64,7 +75,7 @@ export class RoomsService {
 
     room.participants = room.participants || [];
     if (!room.participants.some((p) => p.userId === userId)) {
-      room.participants.push({ userId, name: userName });
+      room.participants.push({ userId, name: userName, userType: 'student' });
       await this.roomRepo.save(room);
     }
 
