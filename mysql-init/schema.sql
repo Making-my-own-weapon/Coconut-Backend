@@ -165,7 +165,8 @@ CREATE TABLE IF NOT EXISTS problems (
   memory_limit_kb        INT     NOT NULL,                  -- 메모리 제한(KB)
   description            TEXT    NOT NULL,                  -- 문제 설명
   solve_time_limit_min   INT,                               -- 풀이 제한(분)
-  source                 ENUM('My','BOJ') NOT NULL DEFAULT 'My',  -- 출처(My vs BOJ)
+  example_tc             JSON,
+  source                 ENUM('My','BOJ','CSES') NOT NULL DEFAULT 'My',  -- 출처(My vs BOJ vs CSES)
   categories             JSON NOT NULL,  -- 카테고리 배열
   created_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at             TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -178,8 +179,8 @@ CREATE TABLE IF NOT EXISTS problems (
 CREATE TABLE IF NOT EXISTS testcases (
   testcase_id   BIGINT AUTO_INCREMENT PRIMARY KEY,
   problem_id    BIGINT NOT NULL,
-  input_tc      VARCHAR(255) NOT NULL,
-  output_tc     VARCHAR(255) NOT NULL,
+  input_tc      VARCHAR(255) NOT NULL, -- S3에 저장된 Input 파일의 Key
+  output_tc     VARCHAR(255) NOT NULL, -- S3에 저장된 Output 파일의 Key
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_testcases_problem
@@ -222,3 +223,4 @@ CREATE TABLE IF NOT EXISTS room_problems (
   CONSTRAINT fk_rp_problem
     FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
 );
+
