@@ -3,36 +3,234 @@ import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  WebSocketServer,
 } from '@nestjs/websockets';
-import { Socket } from 'socket.io';
+import { Socket, Server } from 'socket.io';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Room } from '../rooms/entities/room.entity';
+
+interface ConnectedUser {
+  socketId: string;
+  userId: number;
+  userName: string;
+  role: 'teacher' | 'student';
+  roomId: string; // 내부 식별자(문자열)
+  inviteCode: string;
+}
 
 @WebSocketGateway({
+  port: 3001,
   cors: { origin: '*' },
 })
-export class EditorGateway {
-  /**
-   * 클라이언트를 특정 에디터에 참여시킴
-   * 같은 editorId에 참여한 사람들끼리만 협업 가능
-   * join()
-   *    - socket.io에서 제공하는 기본 기능
-   *    - 실시간 협업 상황에서 특정 그룹에 메시지를 보내기 위해 클라이언트를 같은 그룹에 넣음
-   */
-  @SubscribeMessage('joinEditor')
-  handleJoinEditor(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { editorId: string },
-  ) {
-    client.join(`editor_${payload.editorId}`); // ex) editor_5라는 이름으로 join됨
-    console.log('editor ', payload.editorId, ' joined.');
+export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  private connectedUsers = new Map<string, ConnectedUser>(); // socketId -> user
+  private roomUsers = new Map<string, Set<string>>(); // roomId -> Set<socketId>
+  private collaborations = new Map<
+    string,
+    { teacherSocketId: string; studentSocketId: string }
+  >(); // collaborationId -> { teacherSocketId, studentSocketId }
+
+  @WebSocketServer()
+  server: Server;
+
+  constructor(
+    @InjectRepository(Room)
+    private readonly roomRepository: Repository<Room>,
+  ) {}
+
+  handleConnection(client: Socket) {
+    console.log(`Client connected: ${client.id}`);
   }
 
-  /* 같은 editorId를 가진 모든 클라이언트에게 broadcast */
-  @SubscribeMessage('editCode')
-  handleEditCode(
-    @ConnectedSocket() client: Socket, //요청을 보낸 클라이언트의 객체
-    @MessageBody() payload: { editorId: string; code: string },
+  handleDisconnect(client: Socket) {
+    const user = this.connectedUsers.get(client.id);
+    if (user) {
+      // 방에서 제거
+      const users = this.roomUsers.get(user.roomId);
+      if (users) {
+        users.delete(client.id);
+        if (users.size === 0) this.roomUsers.delete(user.roomId);
+      }
+      this.connectedUsers.delete(client.id);
+
+      // 해당 사용자가 참여한 협업 세션들 정리
+      for (const [
+        collaborationId,
+        collaboration,
+      ] of this.collaborations.entries()) {
+        if (
+          collaboration.teacherSocketId === client.id ||
+          collaboration.studentSocketId === client.id
+        ) {
+          // 상대방에게 협업 종료 알림
+          const targetSocketId =
+            collaboration.teacherSocketId === client.id
+              ? collaboration.studentSocketId
+              : collaboration.teacherSocketId;
+          this.server.to(targetSocketId).emit('collab:ended');
+          this.collaborations.delete(collaborationId);
+          console.log(
+            `사용자 연결 해제로 인한 협업 세션 종료: ${collaborationId}`,
+          );
+        }
+      }
+    }
+    console.log(`Client disconnected: ${client.id}`);
+  }
+
+  @SubscribeMessage('room:join')
+  async handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      roomId: string; // 내부 식별자(문자열)
+      inviteCode: string; // 외부 공유 코드(문자열)
+      userId: number;
+      userName: string;
+      role: 'teacher' | 'student';
+    },
   ) {
-    //클라이언트가 보낸 데이터를 받아오는 부분
-    client.to(`editor_${payload.editorId}`).emit('editorUpdated', payload);
+    console.log('room:join 수신', payload, client.id);
+    // DB에서 방 정보 조회 (inviteCode로 조회)
+    const room = await this.roomRepository.findOne({
+      where: { inviteCode: payload.inviteCode },
+    });
+    if (!room) {
+      client.emit('room:notfound');
+      return;
+    }
+    const maxParticipants = room.maxParticipants;
+
+    let users = this.roomUsers.get(payload.roomId);
+    if (!users) {
+      users = new Set();
+      this.roomUsers.set(payload.roomId, users);
+    }
+    if (users.size >= maxParticipants) {
+      client.emit('room:full');
+      return;
+    }
+    users.add(client.id);
+    this.connectedUsers.set(client.id, { ...payload, socketId: client.id });
+    client.join(`room_${payload.inviteCode}`);
+    client.emit('room:joined', {
+      roomId: payload.roomId,
+      inviteCode: payload.inviteCode,
+    });
+    console.log(
+      `${payload.role} ${payload.userName} joined room ${payload.inviteCode}`,
+    );
+  }
+
+  @SubscribeMessage('collab:start')
+  handleCollabStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { roomId: string; inviteCode: string; studentId: number },
+  ) {
+    console.log('collab:start 수신', payload, client.id);
+
+    const collaborationId = `collab_${payload.inviteCode}_${payload.studentId}`;
+    const teacherSocketId = client.id;
+    const studentSocketId = [...this.connectedUsers.entries()].find(
+      ([, user]) =>
+        user.userId === payload.studentId && user.roomId === payload.roomId,
+    )?.[0];
+
+    if (studentSocketId) {
+      // 1:1 협업 룸에 join (teacherSocketId와 studentSocketId를 함께 저장)
+      this.collaborations.set(collaborationId, {
+        teacherSocketId,
+        studentSocketId,
+      });
+      // 학생에게 코드 요청
+      this.server
+        .to(studentSocketId)
+        .emit('code:request', { collaborationId, teacherSocketId });
+      console.log(
+        `협업 시작 요청: ${collaborationId} - teacher(${teacherSocketId}) -> student(${studentSocketId})`,
+      );
+    } else {
+      console.log(
+        `학생을 찾을 수 없음: studentId=${payload.studentId}, roomId=${payload.roomId}`,
+      );
+    }
+  }
+
+  @SubscribeMessage('code:send')
+  handleCodeSend(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { collaborationId: string; code: string },
+  ) {
+    // 학생이 보낸 코드를 선생님에게 전달 (저장된 teacherSocketId 사용)
+    console.log('code:send 수신!', payload);
+
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      // 저장된 teacherSocketId 사용 (학생이 보낸 teacherSocketId 대신)
+      this.server.to(collaboration.teacherSocketId).emit('code:send', {
+        collaborationId: payload.collaborationId,
+        code: payload.code,
+      });
+
+      // 협업 세션 시작 알림(양쪽)
+      this.server
+        .to(collaboration.teacherSocketId)
+        .emit('collab:started', { collaborationId: payload.collaborationId });
+      this.server
+        .to(collaboration.studentSocketId)
+        .emit('collab:started', { collaborationId: payload.collaborationId });
+
+      console.log(
+        `학생 코드 전송 및 협업 세션 시작: ${payload.collaborationId}`,
+      );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
+    }
+  }
+
+  @SubscribeMessage('collab:edit')
+  handleCollabEdit(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string; code: string },
+  ) {
+    // 1:1 협업 룸에만 broadcast (저장된 소켓 ID 사용)
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const targetSocketId =
+        client.id === collaboration.teacherSocketId
+          ? collaboration.studentSocketId
+          : collaboration.teacherSocketId;
+
+      this.server.to(targetSocketId).emit('code:update', {
+        collaborationId: payload.collaborationId,
+        code: payload.code,
+      });
+      console.log(
+        `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
+      );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
+    }
+  }
+
+  @SubscribeMessage('collab:end')
+  handleCollabEnd(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string },
+  ) {
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      // 양쪽 모두에게 협업 종료 알림
+      this.server.to(collaboration.teacherSocketId).emit('collab:ended');
+      this.server.to(collaboration.studentSocketId).emit('collab:ended');
+
+      this.collaborations.delete(payload.collaborationId);
+      console.log(`협업 종료: ${payload.collaborationId}`);
+    }
   }
 }
