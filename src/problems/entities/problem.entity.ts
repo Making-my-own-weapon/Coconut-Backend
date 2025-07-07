@@ -54,6 +54,10 @@ export class Problem {
   @Column({ type: 'json' })
   categories: string[];
 
+  // 예시 테스트케이스 (JSON)
+  @Column({ name: 'example_tc', type: 'json', nullable: true })
+  exampleTc: string;
+
   // 테스트케이스 (testcases.problem_id → problems.problem_id)
   @OneToMany(() => Testcase, (tc) => tc.problem, { cascade: true })
   testcases: Testcase[];
