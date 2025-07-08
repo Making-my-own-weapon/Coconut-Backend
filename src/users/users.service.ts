@@ -38,4 +38,14 @@ export class UsersService {
   async findOneById(id: number): Promise<User | null> {
     return this.userRepository.findOneBy({ id });
   }
+
+  async deleteUser(userId: number): Promise<void> {
+    // TypeORM의 delete 메서드를 사용해 id가 일치하는 유저를 삭제합니다.
+    const deleteResult = await this.userRepository.delete({ id: userId });
+
+    // 만약 삭제된 행이 없다면(affected === 0), 해당 유저가 없다는 뜻이므로 에러를 발생시킵니다.
+    if (deleteResult.affected === 0) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+  }
 }
