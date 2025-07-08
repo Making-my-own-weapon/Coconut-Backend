@@ -10,8 +10,14 @@ import { CreateSubmissionDto } from './dto/create-submission.dto';
 @Injectable()
 export class SubmissionService {
   private sqsClient: SQSClient;
-  private readonly QUEUE_URL =
-    'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-light-queue';
+  private readonly QUEUE_URLS = {
+    light:
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-light-queue',
+    medium:
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-medium-queue',
+    heavy:
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-heavy-queue',
+  };
 
   constructor(
     @InjectRepository(Submission)
@@ -99,28 +105,47 @@ export class SubmissionService {
     // 테스트케이스 키 배열 생성
     const testcase_keys = testcases.map((tc) => [tc.input_tc, tc.output_tc]);
 
+    // 문제 복잡도에 따른 큐 선택 (메모리 기준)
+    const complexity = this.determineComplexity(problem.memoryLimitKb);
+    const queueUrl = this.QUEUE_URLS[complexity];
+
     const message = {
       submission_id: submission.submission_id,
       problem_id: parseInt(submission.problem_id), // string을 number로 변환
       code: submission.code,
       language: submission.language, // 언어 정보 추가
       time_limit_ms: problem.executionTimeLimitMs, // DB에서 가져온 실제 제한시간
+      memory_limit_kb: problem.memoryLimitKb, // DB에서 가져온 실제 메모리 제한
+      complexity: complexity, // Lambda 복잡도 정보
       testcase_keys: testcase_keys,
     };
 
     const command = new SendMessageCommand({
-      QueueUrl: this.QUEUE_URL,
+      QueueUrl: queueUrl,
       MessageBody: JSON.stringify(message),
     });
 
     try {
       await this.sqsClient.send(command);
       console.log(
-        `SQS 메시지 전송 성공: submission_id=${submission.submission_id}, 테스트케이스 ${testcases.length}개`,
+        `SQS 메시지 전송 성공: submission_id=${submission.submission_id}, 테스트케이스 ${testcases.length}개, complexity=${complexity}, memory_limit=${problem.memoryLimitKb}KB`,
       );
     } catch (error) {
       console.error('SQS 메시지 전송 실패:', error);
       throw error;
+    }
+  }
+
+  private determineComplexity(
+    memoryLimitKb: number,
+  ): 'light' | 'medium' | 'heavy' {
+    // 메모리 제한 기준으로 복잡도 판단
+    if (memoryLimitKb <= 262144) {
+      return 'light'; // <= 256MB: light Lambda (256MB, 15초 타임아웃)
+    } else if (memoryLimitKb <= 524288) {
+      return 'medium'; // 256~512MB: medium Lambda (512MB, 30초 타임아웃)
+    } else {
+      return 'heavy'; // > 512MB: heavy Lambda (1024MB, 60초 타임아웃)
     }
   }
 
