@@ -123,6 +123,38 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(
       `${payload.role} ${payload.userName} joined room ${payload.inviteCode}`,
     );
+
+    // 학생이 입장하면 방 전체에 room:updated broadcast
+    this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
+    console.log('room:updated emit (join)', payload.inviteCode);
+  }
+
+  @SubscribeMessage('room:leave')
+  async handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { roomId: string; userId: number; inviteCode: string }
+  ) {
+    // 1. 메모리에서 제거
+    this.connectedUsers.delete(client.id);
+    const users = this.roomUsers.get(payload.roomId);
+    if (users) {
+      users.delete(client.id);
+      if (users.size === 0) this.roomUsers.delete(payload.roomId);
+    }
+    client.leave(`room_${payload.inviteCode}`);
+
+    // 2. DB에서 participants에서 해당 학생 제거
+    const room = await this.roomRepository.findOne({ where: { inviteCode: payload.inviteCode } });
+    if (room) {
+      room.participants = (room.participants || []).filter(
+        (p: any) => String(p.userId) !== String(payload.userId)
+      );
+      await this.roomRepository.save(room);
+    }
+
+    // 3. 방 전체에 room:updated broadcast
+    this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
+    console.log('room:updated emit (leave)', payload.inviteCode);
   }
 
   @SubscribeMessage('collab:start')
