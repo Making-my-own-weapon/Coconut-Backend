@@ -8,9 +8,14 @@ import {
   Param,
   Req,
   ForbiddenException,
+  Delete,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RoomsService } from './rooms.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 // DTO import
 import { CreateRoomDto } from './dtos/create-room.dto';
@@ -82,5 +87,15 @@ export class RoomsController {
       throw new ForbiddenException('방 생성자만 상태를 변경할 수 있습니다.');
     }
     return { success: true };
+  }
+
+  @Delete(':roomId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteRoom(
+    @Param('roomId') roomId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<void> {
+    return this.roomsService.deleteRoom(Number(roomId), req.user.id);
   }
 }

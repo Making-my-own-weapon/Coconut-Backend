@@ -1,5 +1,9 @@
 // src/rooms/rooms.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Room, RoomStatus } from './entities/room.entity';
@@ -143,5 +147,16 @@ export class RoomsService {
     room.status = newStatus;
     await this.roomRepo.save(room);
     return true;
+  }
+
+  async deleteRoom(roomId: number, requesterId: number): Promise<void> {
+    const room = await this.roomRepo.findOne({ where: { roomId } });
+
+    // 방이 없거나, 요청자가 방 생성자가 아니면 에러 발생
+    if (!room || room.creatorId !== requesterId) {
+      throw new ForbiddenException('방을 삭제할 권한이 없습니다.');
+    }
+
+    await this.roomRepo.remove(room);
   }
 }
