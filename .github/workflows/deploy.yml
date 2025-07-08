@@ -1,7 +1,7 @@
 # ecs를 사용한 자동 배포 예시
 
 name: Deploy to ECS (Rolling Update)
-
+ 
 on:
   push:
     branches:
