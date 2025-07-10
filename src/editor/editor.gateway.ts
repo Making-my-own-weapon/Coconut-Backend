@@ -21,6 +21,12 @@ interface ConnectedUser {
   inviteCode: string;
 }
 
+// SVGLine 인터페이스가 없으면 추가
+interface SVGLine {
+  points: [number, number][];
+  color: string;
+}
+
 @WebSocketGateway({
   port: 3001,
   cors: { origin: '*' },
@@ -32,6 +38,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     string,
     { teacherSocketId: string; studentSocketId: string }
   >(); // collaborationId -> { teacherSocketId, studentSocketId }
+  private collaborationSVGs = new Map<string, SVGLine[]>(); // collaborationId -> lines
 
   @WebSocketServer()
   server: Server;
@@ -125,14 +132,15 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     // 학생이 입장하면 방 전체에 room:updated broadcast
-    this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
+    void this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
     console.log('room:updated emit (join)', payload.inviteCode);
   }
 
   @SubscribeMessage('room:leave')
   async handleLeaveRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string; userId: number; inviteCode: string }
+    @MessageBody()
+    payload: { roomId: string; userId: number; inviteCode: string },
   ) {
     // 1. 메모리에서 제거
     this.connectedUsers.delete(client.id);
@@ -144,16 +152,22 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`room_${payload.inviteCode}`);
 
     // 2. DB에서 participants에서 해당 학생 제거
-    const room = await this.roomRepository.findOne({ where: { inviteCode: payload.inviteCode } });
+    const room = await this.roomRepository.findOne({
+      where: { inviteCode: payload.inviteCode },
+    });
     if (room) {
       room.participants = (room.participants || []).filter(
-        (p: any) => String(p.userId) !== String(payload.userId)
+        (p: {
+          userId: number;
+          name: string;
+          userType: 'teacher' | 'student';
+        }) => String(p.userId) !== String(payload.userId),
       );
       await this.roomRepository.save(room);
     }
 
     // 3. 방 전체에 room:updated broadcast
-    this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
+    void this.server.to(`room_${payload.inviteCode}`).emit('room:updated');
     console.log('room:updated emit (leave)', payload.inviteCode);
   }
 
@@ -262,7 +276,64 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(collaboration.studentSocketId).emit('collab:ended');
 
       this.collaborations.delete(payload.collaborationId);
+      // SVG 데이터도 정리
+      this.collaborationSVGs.delete(payload.collaborationId);
       console.log(`협업 종료: ${payload.collaborationId}`);
+    }
+  }
+
+  // SVG 관련 이벤트 핸들러들
+  @SubscribeMessage('updateSVG')
+  handleUpdateSVG(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string; lines: SVGLine[] },
+  ) {
+    console.log(
+      'updateSVG 수신:',
+      payload.collaborationId,
+      '라인 수:',
+      payload.lines.length,
+    );
+    this.collaborationSVGs.set(payload.collaborationId, payload.lines);
+
+    // 협업 세션의 상대방에게만 전송
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const targetSocketId =
+        client.id === collaboration.teacherSocketId
+          ? collaboration.studentSocketId
+          : collaboration.teacherSocketId;
+
+      this.server.to(targetSocketId).emit('svgData', { lines: payload.lines });
+      console.log(
+        `SVG 데이터 전송: ${payload.collaborationId} -> ${targetSocketId}`,
+      );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
+    }
+  }
+
+  @SubscribeMessage('clearSVG')
+  handleClearSVG(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string },
+  ) {
+    this.collaborationSVGs.set(payload.collaborationId, []);
+
+    // 협업 세션의 상대방에게만 전송
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const targetSocketId =
+        client.id === collaboration.teacherSocketId
+          ? collaboration.studentSocketId
+          : collaboration.teacherSocketId;
+
+      this.server.to(targetSocketId).emit('svgCleared');
+      console.log(
+        `SVG 클리어 전송: ${payload.collaborationId} -> ${targetSocketId}`,
+      );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
   }
 }
