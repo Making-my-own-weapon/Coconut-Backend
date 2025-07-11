@@ -26,10 +26,6 @@
         {
           "name": "PORT",
           "value": "3001"
-        },
-        {
-          "name": "JWT_SECRET",
-          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/JWT_SECRET"
         }
       ],
       "secrets": [
@@ -48,6 +44,10 @@
         {
           "name": "DB_DATABASE",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/db/database"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/JWT_SECRET"
         }
       ],
       "logConfiguration": {
