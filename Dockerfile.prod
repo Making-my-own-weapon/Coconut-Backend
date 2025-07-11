@@ -14,7 +14,7 @@ RUN npm run build
 
 # 프로덕션 의존성만 남기고 재설치
 RUN rm -rf node_modules
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # 포트 노출
 EXPOSE 3001
