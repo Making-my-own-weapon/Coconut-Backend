@@ -132,7 +132,8 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('room:leave')
   async handleLeaveRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string; userId: number; inviteCode: string }
+    @MessageBody()
+    payload: { roomId: string; userId: number; inviteCode: string },
   ) {
     // 1. 메모리에서 제거
     this.connectedUsers.delete(client.id);
@@ -144,10 +145,12 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.leave(`room_${payload.inviteCode}`);
 
     // 2. DB에서 participants에서 해당 학생 제거
-    const room = await this.roomRepository.findOne({ where: { inviteCode: payload.inviteCode } });
+    const room = await this.roomRepository.findOne({
+      where: { inviteCode: payload.inviteCode },
+    });
     if (room) {
       room.participants = (room.participants || []).filter(
-        (p: any) => String(p.userId) !== String(payload.userId)
+        (p) => String(p.userId) !== String(payload.userId),
       );
       await this.roomRepository.save(room);
     }
@@ -242,9 +245,9 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
         collaborationId: payload.collaborationId,
         code: payload.code,
       });
-      console.log(
-        `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
-      );
+      // console.log(
+      //   `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
+      // );
     } else {
       console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
@@ -263,6 +266,32 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.collaborations.delete(payload.collaborationId);
       console.log(`협업 종료: ${payload.collaborationId}`);
+    }
+  }
+
+  @SubscribeMessage('cursor:update')
+  handleCursorUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { collaborationId: string; lineNumber: number; column: number },
+  ) {
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const targetSocketId =
+        client.id === collaboration.teacherSocketId
+          ? collaboration.studentSocketId
+          : collaboration.teacherSocketId;
+
+      this.server.to(targetSocketId).emit('cursor:update', {
+        lineNumber: payload.lineNumber,
+        column: payload.column,
+      });
+      // (선택) 로그
+      // console.log(
+      //   `커서 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId} (${payload.lineNumber},${payload.column})`,
+      // );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
   }
 }
