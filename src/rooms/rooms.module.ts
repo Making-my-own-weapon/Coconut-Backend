@@ -6,9 +6,10 @@ import { RoomsController } from './rooms.controller';
 import { Room } from './entities/room.entity';
 import { RoomProblem } from '../problems/entities/room-problem.entity';
 import { Problem } from '../problems/entities/problem.entity';
+import { Submission } from '../submissions/entities/submission.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Room, RoomProblem, Problem])],
+  imports: [TypeOrmModule.forFeature([Room, RoomProblem, Problem, Submission])],
   controllers: [RoomsController],
   providers: [RoomsService],
   exports: [RoomsService],
