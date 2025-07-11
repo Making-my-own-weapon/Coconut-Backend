@@ -11,6 +11,7 @@ import { RoomProblem } from '../problems/entities/room-problem.entity';
 import { Problem } from '../problems/entities/problem.entity';
 import { CreateRoomDto } from './dtos/create-room.dto';
 import { UsersService } from '../users/users.service';
+import { Submission } from '../submissions/entities/submission.entity';
 
 @Injectable()
 export class RoomsService {
@@ -21,6 +22,8 @@ export class RoomsService {
     private readonly rpRepo: Repository<RoomProblem>,
     @InjectRepository(Problem)
     private readonly problemRepo: Repository<Problem>,
+    @InjectRepository(Submission)
+    private readonly submissionRepo: Repository<Submission>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -158,5 +161,23 @@ export class RoomsService {
     }
 
     await this.roomRepo.remove(room);
+  }
+
+  // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』1
+  async getRoomReport(roomId: number) {
+    const submissions = await this.submissionRepo.find({
+      where: { room_id: roomId },
+    }); //평균 정답률 1
+
+    if (submissions.length === 0) {
+      return { averageSuccessRate: 0 };
+    } //평균 정답률 2
+
+    const correctSubmissions = submissions.filter((s) => s.is_passed).length;
+    const averageSuccessRate = Math.round(
+      (correctSubmissions / submissions.length) * 100,
+    ); //평균 정답률 3
+
+    return { averageSuccessRate }; //평균 정답률 4
   }
 }
