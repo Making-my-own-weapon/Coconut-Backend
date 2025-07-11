@@ -256,9 +256,9 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
         collaborationId: payload.collaborationId,
         code: payload.code,
       });
-      console.log(
-        `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
-      );
+      // console.log(
+      //   `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
+      // );
     } else {
       console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
@@ -279,6 +279,32 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // SVG 데이터도 정리
       this.collaborationSVGs.delete(payload.collaborationId);
       console.log(`협업 종료: ${payload.collaborationId}`);
+    }
+  }
+
+  @SubscribeMessage('cursor:update')
+  handleCursorUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { collaborationId: string; lineNumber: number; column: number },
+  ) {
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const targetSocketId =
+        client.id === collaboration.teacherSocketId
+          ? collaboration.studentSocketId
+          : collaboration.teacherSocketId;
+
+      this.server.to(targetSocketId).emit('cursor:update', {
+        lineNumber: payload.lineNumber,
+        column: payload.column,
+      });
+      // (선택) 로그
+      // console.log(
+      //   `커서 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId} (${payload.lineNumber},${payload.column})`,
+      // );
+    } else {
+      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
   }
 
