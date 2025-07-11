@@ -98,4 +98,11 @@ export class RoomsController {
   ): Promise<void> {
     return this.roomsService.deleteRoom(Number(roomId), req.user.id);
   }
+
+  // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』2
+  @Get(':roomId/report')
+  @UseGuards(JwtAuthGuard)
+  async getRoomReport(@Param('roomId') roomId: string) {
+    return await this.roomsService.getRoomReport(Number(roomId));
+  } //평균 정답률 5
 }

@@ -1,4 +1,4 @@
-// src/rooms/entities/room.entity.ts
+// src/submissions/entities/submission.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
