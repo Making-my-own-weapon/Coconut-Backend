@@ -304,7 +304,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       //   `커서 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId} (${payload.lineNumber},${payload.column})`,
       // );
     } else {
-      console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
+      console.log(`협업 세션을 찾을 수 없음!: ${payload.collaborationId}`);
     }
   }
 
