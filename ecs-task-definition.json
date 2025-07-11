@@ -48,6 +48,10 @@
         {
           "name": "JWT_SECRET",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/JWT_SECRET"
+        },
+        {
+          "name": "REFRESH_JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/REFRESH_JWT_SECRET"
         }
       ],
       "logConfiguration": {
