@@ -4,10 +4,12 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   ParseIntPipe,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ProblemsService } from './problems.service';
@@ -15,6 +17,7 @@ import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
 import { AssignRoomProblemDto } from './dtos/assign-room-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
 import { ProblemSummaryDto } from './dtos/problem-summary.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 interface RequestWithUser extends Request {
   user: { id: number };
@@ -53,13 +56,19 @@ export class ProblemsController {
     return this.svc.getProblemSummaries();
   }
 
-  /** 5) 방별 문제 목록 조회 */
+  /** 5) 특정 문제 상세 정보 조회 (방 할당 여부와 관계없이) */
+  @Get('db/problems/:problemId')
+  getProblemDetail(@Param('problemId', ParseIntPipe) problemId: number) {
+    return this.svc.getProblemDetail(problemId);
+  }
+
+  /** 6) 방별 문제 목록 조회 */
   @Get('rooms/:roomId/problems')
   getProblemsByRoomId(@Param('roomId', ParseIntPipe) roomId: number) {
     return this.svc.getProblemsByRoomId(roomId);
   }
 
-  /** 6) 방별 특정 문제 상세 조회 */
+  /** 7) 방별 특정 문제 상세 조회 */
   @Get('rooms/:roomId/problems/:pid')
   getProblemDetailByRoomId(
     @Param('roomId', ParseIntPipe) roomId: number,
@@ -68,7 +77,7 @@ export class ProblemsController {
     return this.svc.getProblemDetailByRoomId(roomId, pid);
   }
 
-  /** 7) 방별 문제 정보 일부 수정 (호스트만) */
+  /** 8) 방별 문제 정보 일부 수정 (호스트만) */
   @Patch('rooms/:roomId/problems/:pid')
   updateProblemDetailByRoomId(
     @Param('roomId', ParseIntPipe) roomId: number,
@@ -78,5 +87,17 @@ export class ProblemsController {
   ) {
     const userId = req.user.id;
     return this.svc.updateProblemDetailByRoomId(roomId, pid, dto, userId);
+  }
+
+  /** 9) 방에서 문제 제거 (호스트만) - DB 문제는 삭제하지 않고 방-문제 연결만 제거 */
+  @Delete('rooms/:roomId/problems/:pid')
+  @UseGuards(JwtAuthGuard)
+  removeProblemFromRoom(
+    @Param('roomId', ParseIntPipe) roomId: number,
+    @Param('pid', ParseIntPipe) pid: number,
+    @Req() req: RequestWithUser,
+  ) {
+    const userId = req.user.id;
+    return this.svc.removeProblemFromRoom(roomId, pid, userId);
   }
 }

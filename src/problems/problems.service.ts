@@ -11,6 +11,7 @@ import { RoomProblem } from './entities/room-problem.entity';
 import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
 import { ProblemSummaryDto } from './dtos/problem-summary.dto';
+import { EditorGateway } from '../editor/editor.gateway';
 
 @Injectable()
 export class ProblemsService {
@@ -23,6 +24,7 @@ export class ProblemsService {
 
     @InjectRepository(Room)
     private readonly roomRepo: Repository<Room>, // 방 정보 조회용
+    private readonly editorGateway: EditorGateway, // ← 추가
   ) {}
 
   /** 1) DB에 새 문제 생성 */
@@ -60,7 +62,14 @@ export class ProblemsService {
     const links = problemIds.map((problemId) =>
       this.roomProblemRepo.create({ roomId, problemId }),
     );
-    return this.roomProblemRepo.save(links);
+    const result = await this.roomProblemRepo.save(links);
+    // 문제 할당 후 소켓 이벤트 emit
+    if (room.inviteCode) {
+      this.editorGateway.server
+        .to(`room_${room.inviteCode}`)
+        .emit('problem:updated', { roomId: room.roomId });
+    }
+    return result;
   }
 
   /** 3) DB의 모든 문제 목록 조회 */
@@ -80,7 +89,17 @@ export class ProblemsService {
     return raws.map((p) => Object.assign(new ProblemSummaryDto(), p));
   }
 
-  /** 5) 방별 문제 목록 조회 (RoomProblem ↔ Problem join) */
+  /** 5) 특정 문제 상세 정보 조회 (방 할당 여부와 관계없이) */
+  async getProblemDetail(problemId: number): Promise<Problem> {
+    const problem = await this.problemRepo.findOne({
+      where: { problemId },
+      relations: ['testcases'],
+    });
+    if (!problem) throw new NotFoundException('Problem not found');
+    return problem;
+  }
+
+  /** 6) 방별 문제 목록 조회 (RoomProblem ↔ Problem join) */
   async getProblemsByRoomId(roomId: number): Promise<Problem[]> {
     const links = await this.roomProblemRepo.find({
       where: { roomId },
@@ -89,7 +108,7 @@ export class ProblemsService {
     return links.map((link) => link.problem);
   }
 
-  /** 6) 방별 특정 문제 상세 조회 */
+  /** 7) 방별 특정 문제 상세 조회 */
   async getProblemDetailByRoomId(
     roomId: number,
     pid: number,
@@ -102,7 +121,7 @@ export class ProblemsService {
     return link.problem;
   }
 
-  /** 7) 방별 문제 정보 일부 수정 (호스트만)*/
+  /** 8) 방별 문제 정보 일부 수정 (호스트만)*/
   async updateProblemDetailByRoomId(
     roomId: number,
     pid: number,
@@ -133,6 +152,42 @@ export class ProblemsService {
         sampleTestcases: dto.sampleTestcases,
       }),
     });
-    return this.problemRepo.save(problem);
+    const updated = await this.problemRepo.save(problem);
+    // 문제 수정 후 소켓 이벤트 emit
+    if (room.inviteCode) {
+      this.editorGateway.server
+        .to(`room_${room.inviteCode}`)
+        .emit('problem:updated', { roomId: room.roomId });
+    }
+    return updated;
+  }
+
+  /** 9) 방에서 문제 제거 (호스트만) - DB 문제는 삭제하지 않고 방-문제 연결만 제거 */
+  async removeProblemFromRoom(
+    roomId: number,
+    problemId: number,
+    userId: number,
+  ): Promise<void> {
+    // 1) 방 존재 및 호스트 여부 확인
+    const room = await this.roomRepo.findOneBy({ roomId });
+    if (!room) throw new NotFoundException('Room not found');
+    if (room.creatorId !== userId)
+      throw new ForbiddenException('방 생성자만 문제를 제거할 수 있습니다.');
+
+    // 2) 방-문제 링크만 삭제 (Problem 테이블은 건드리지 않음)
+    const result = await this.roomProblemRepo.delete({
+      roomId,
+      problemId,
+    });
+
+    if (result.affected === 0) {
+      throw new NotFoundException('Problem not found in this room');
+    }
+    // 문제 삭제 후 소켓 이벤트 emit
+    if (room.inviteCode) {
+      this.editorGateway.server
+        .to(`room_${room.inviteCode}`)
+        .emit('problem:updated', { roomId: room.roomId });
+    }
   }
 }
