@@ -26,6 +26,10 @@
         {
           "name": "PORT",
           "value": "3001"
+        },
+        {
+          "name": "CORS_ORIGIN",
+          "value": "http://3.34.48.6:3000"
         }
       ],
       "secrets": [
