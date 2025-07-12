@@ -28,7 +28,7 @@
           "value": "3001"
         },
         {
-          "name": "CORS_ORIGIN",
+          "name": "CLIENT_URL",
           "value": "http://3.34.48.6:3000"
         }
       ],
