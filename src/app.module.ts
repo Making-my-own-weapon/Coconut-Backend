@@ -4,6 +4,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ProblemsModule } from './problems/problems.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { SubmissionModule } from './submissions/submission.module';
 import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 //import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
@@ -41,6 +42,7 @@ import { HealthController } from './health/health.controller';
     ProblemsModule,
     RoomsModule,
     UsersModule,
+    SubmissionModule,
   ],
   controllers: [HealthController],
   providers: [

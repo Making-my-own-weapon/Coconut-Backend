@@ -8,9 +8,14 @@ import {
   Param,
   Req,
   ForbiddenException,
+  Delete,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { RoomsService } from './rooms.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 // DTO import
 import { CreateRoomDto } from './dtos/create-room.dto';
@@ -83,4 +88,21 @@ export class RoomsController {
     }
     return { success: true };
   }
+
+  @Delete(':roomId')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteRoom(
+    @Param('roomId') roomId: string,
+    @Req() req: RequestWithUser,
+  ): Promise<void> {
+    return this.roomsService.deleteRoom(Number(roomId), req.user.id);
+  }
+
+  // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』2
+  @Get(':roomId/report')
+  @UseGuards(JwtAuthGuard)
+  async getRoomReport(@Param('roomId') roomId: string) {
+    return await this.roomsService.getRoomReport(Number(roomId));
+  } //평균 정답률 5
 }

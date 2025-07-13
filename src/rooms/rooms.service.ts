@@ -1,11 +1,17 @@
 // src/rooms/rooms.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Room, RoomStatus } from './entities/room.entity';
 import { RoomProblem } from '../problems/entities/room-problem.entity';
 import { Problem } from '../problems/entities/problem.entity';
 import { CreateRoomDto } from './dtos/create-room.dto';
+import { UsersService } from '../users/users.service';
+import { Submission } from '../submissions/entities/submission.entity';
 
 @Injectable()
 export class RoomsService {
@@ -16,6 +22,9 @@ export class RoomsService {
     private readonly rpRepo: Repository<RoomProblem>,
     @InjectRepository(Problem)
     private readonly problemRepo: Repository<Problem>,
+    @InjectRepository(Submission)
+    private readonly submissionRepo: Repository<Submission>,
+    private readonly usersService: UsersService,
   ) {}
 
   private generateInviteCode(): string {
@@ -31,15 +40,24 @@ export class RoomsService {
     if (existing) {
       throw new BadRequestException('이미 생성한 방이 있습니다.');
     }
+
+    // 선생님 정보 가져오기
+    const teacher = await this.usersService.findOneById(creatorId);
+    if (!teacher) {
+      throw new BadRequestException('사용자 정보를 찾을 수 없습니다.');
+    }
+
     const inviteCode = this.generateInviteCode();
     const room = this.roomRepo.create({
       title: dto.title,
       description: dto.description,
-      maxParticipants: dto.maxParticipants,
+      maxParticipants: dto.maxParticipants + 1, // 학생 수 + 선생님 1명
       inviteCode,
       status: RoomStatus.WAITING,
       creatorId,
-      participants: [],
+      participants: [
+        { userId: creatorId, name: teacher.name, userType: 'teacher' },
+      ],
     });
     const saved = await this.roomRepo.save(room);
     return { roomId: saved.roomId, inviteCode };
@@ -64,7 +82,7 @@ export class RoomsService {
 
     room.participants = room.participants || [];
     if (!room.participants.some((p) => p.userId === userId)) {
-      room.participants.push({ userId, name: userName });
+      room.participants.push({ userId, name: userName, userType: 'student' });
       await this.roomRepo.save(room);
     }
 
@@ -132,5 +150,34 @@ export class RoomsService {
     room.status = newStatus;
     await this.roomRepo.save(room);
     return true;
+  }
+
+  async deleteRoom(roomId: number, requesterId: number): Promise<void> {
+    const room = await this.roomRepo.findOne({ where: { roomId } });
+
+    // 방이 없거나, 요청자가 방 생성자가 아니면 에러 발생
+    if (!room || room.creatorId !== requesterId) {
+      throw new ForbiddenException('방을 삭제할 권한이 없습니다.');
+    }
+
+    await this.roomRepo.remove(room);
+  }
+
+  // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』1
+  async getRoomReport(roomId: number) {
+    const submissions = await this.submissionRepo.find({
+      where: { room_id: roomId },
+    }); //평균 정답률 1
+
+    if (submissions.length === 0) {
+      return { averageSuccessRate: 0 };
+    } //평균 정답률 2
+
+    const correctSubmissions = submissions.filter((s) => s.is_passed).length;
+    const averageSuccessRate = Math.round(
+      (correctSubmissions / submissions.length) * 100,
+    ); //평균 정답률 3
+
+    return { averageSuccessRate }; //평균 정답률 4
   }
 }
