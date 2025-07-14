@@ -3,20 +3,19 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import Redis from 'ioredis';
-import { createHash } from 'crypto';
 import { RealtimeAnalysisResponseDto } from './dto/realtime-analysis.dto';
 import { DetailedAnalysisResponseDto } from './dto/detailed-analysis.dto';
 import { Problem } from '../problems/entities/problem.entity';
+import { AnalysisCacheService } from './cache/analysis-cache.service';
 
 @Injectable()
 export class AnalysisService {
   private readonly logger = new Logger(AnalysisService.name);
   private bedrock: BedrockRuntimeClient;
-  private redis: Redis;
 
   constructor(
     private configService: ConfigService,
+    private cacheService: AnalysisCacheService,
     @InjectRepository(Problem)
     private problemRepository: Repository<Problem>,
   ) {
@@ -64,12 +63,8 @@ export class AnalysisService {
         region: 'ap-northeast-2',
       });
     }
-    this.redis = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
-    });
     
-    console.log('🚀 AnalysisService initialized with Amazon Bedrock Nova Micro');
+    console.log('🚀 AnalysisService initialized with Tree-sitter caching');
   }
 
   async getRealtimeAnalysis(problemId: string, studentCode: string): Promise<RealtimeAnalysisResponseDto> {
@@ -91,20 +86,13 @@ export class AnalysisService {
     }
     
     const problemDescription = problem.description;
-    const astHash = this.generateASTHash(studentCode);
-    const cacheKey = `analysis:${problemId}:${astHash}`;
 
-    // Redis 캐시 조회
-    const redisStart = Date.now();
-    const cached = await this.redis.get(cacheKey);
-    const redisEnd = Date.now();
-    this.logger.log(`🔍 Redis Query took: ${redisEnd - redisStart}ms`);
-    console.log(`🔍 Redis Query took: ${redisEnd - redisStart}ms`);
-    
+    // 캐시 조회
+    const cached = await this.cacheService.getCachedAnalysis(problemId, studentCode);
     if (cached) {
       const totalTime = Date.now() - startTime;
       this.logger.log(`✅ Cache HIT - Total time: ${totalTime}ms`);
-      return JSON.parse(cached);
+      return cached;
     }
 
     this.logger.log(`❌ Cache MISS - proceeding to AI call`);
@@ -207,21 +195,14 @@ ${studentCode}
       throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
     }
 
-    // Redis에 캐시 저장 (7일 TTL)
-    const cacheStart = Date.now();
-    await this.redis.setex(cacheKey, 7 * 24 * 60 * 60, JSON.stringify(analysisResult));
-    const cacheEnd = Date.now();
-    this.logger.log(`💾 Cache Save took: ${cacheEnd - cacheStart}ms`);
+    // 캐시에 저장
+    await this.cacheService.saveCachedAnalysis(problemId, studentCode, analysisResult);
     
     const totalTime = Date.now() - startTime;
     this.logger.log(`🏁 Total Analysis Time: ${totalTime}ms`);
     console.log(`🏁 Total Analysis Time: ${totalTime}ms`);
 
     return analysisResult;
-  }
-
-  private generateASTHash(code: string): string {
-    return createHash('md5').update(code.trim()).digest('hex');
   }
 
   async getDetailedAnalysis(
