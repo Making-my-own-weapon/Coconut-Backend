@@ -9,6 +9,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 //import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { EditorModule } from './editor/editor.module';
+import { AnalysisModule } from './analysis/analysis.module';
 import { HealthController } from './health/health.controller';
 
 @Module({
@@ -43,6 +44,7 @@ import { HealthController } from './health/health.controller';
     RoomsModule,
     UsersModule,
     SubmissionModule,
+    AnalysisModule,
   ],
   controllers: [HealthController],
   providers: [

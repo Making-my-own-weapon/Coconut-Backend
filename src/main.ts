@@ -5,7 +5,9 @@ import * as cookieParser from 'cookie-parser';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
 
   app.enableCors({
     origin: process.env.CORS_ORIGIN,
@@ -17,5 +19,6 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new JwtAuthGuard(reflector));
   await app.listen(process.env.PORT ?? 3001);
+  console.log('🚀 Server is running on port', process.env.PORT ?? 3001);
 }
 void bootstrap();
