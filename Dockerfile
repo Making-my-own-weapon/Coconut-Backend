@@ -12,6 +12,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Python과 빌드 도구 설치 (Tree-sitter 네이티브 모듈 컴파일용)
+RUN apk add --no-cache python3 make g++
+
 # 1. NestJS CLI 글로벌 설치 (중요!)
 RUN npm install -g @nestjs/cli
 
@@ -19,7 +22,10 @@ RUN npm install -g @nestjs/cli
 COPY package*.json ./
 
 # 3. devDependencies까지 모두 설치 (start:dev에 필요)
-RUN npm install
+# Tree-sitter 미리 컴파일된 바이너리 사용
+ENV npm_config_target_platform=linux
+ENV npm_config_target_arch=arm64
+RUN npm install --legacy-peer-deps
 
 # 4. 소스 코드 복사
 COPY . .
