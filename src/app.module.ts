@@ -11,6 +11,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EditorModule } from './editor/editor.module';
 import { AnalysisModule } from './analysis/analysis.module';
 import { HealthController } from './health/health.controller';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { HealthController } from './health/health.controller';
     UsersModule,
     SubmissionModule,
     AnalysisModule,
+    VoiceModule,
   ],
   controllers: [HealthController],
   providers: [

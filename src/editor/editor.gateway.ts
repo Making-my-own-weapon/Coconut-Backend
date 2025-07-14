@@ -40,6 +40,9 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   >(); // collaborationId -> { teacherSocketId, studentSocketId }
   private collaborationSVGs = new Map<string, SVGLine[]>(); // collaborationId -> lines
 
+  // (voiceUsers, roomVoiceUsers 상태 삭제)
+  // (handleVoiceJoin, handleVoiceSignal, handleVoiceLeave 메서드 전체 삭제)
+
   @WebSocketServer()
   server: Server;
 
@@ -362,4 +365,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
   }
+
+  // 음성채팅 관련 이벤트 핸들러들
+  // (handleVoiceJoin, handleVoiceSignal, handleVoiceLeave 메서드 전체 삭제)
 }
