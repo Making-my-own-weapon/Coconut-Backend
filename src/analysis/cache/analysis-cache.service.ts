@@ -6,8 +6,15 @@ import { TreeSitterParserService } from './tree-sitter-parser.service';
 import { RealtimeAnalysisResponseDto } from '../dto/realtime-analysis.dto';
 
 // Tree-sitter 관련 타입 정의
+interface TreeSitterNode {
+  type: string;
+  text?: string;
+  children?: TreeSitterNode[];
+  rootNode?: TreeSitterNode;
+}
+
 interface TreeSitterTree {
-  rootNode: unknown;
+  rootNode: TreeSitterNode;
 }
 
 interface ParsingStats {
