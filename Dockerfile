@@ -25,8 +25,7 @@ COPY package*.json ./
 # Tree-sitter 미리 컴파일된 바이너리 사용
 ENV npm_config_target_platform=linux
 ENV npm_config_target_arch=arm64
-RUN npm install --legacy-peer-deps
-
+RUN npm install
 # 4. 소스 코드 복사
 COPY . .
 
