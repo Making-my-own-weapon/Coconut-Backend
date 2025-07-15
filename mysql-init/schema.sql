@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   creator_id      INT NOT NULL UNIQUE,   -- 인당 방 하나만 생성 가능
   participants    JSON,
   problems        JSON,
+  end_time        VARCHAR(8),            -- 수업 종료 시 타이머 시간 (HH:MM:SS 형식)
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

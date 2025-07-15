@@ -142,12 +142,19 @@ export class RoomsService {
     roomId: number,
     requesterId: number,
     newStatus: RoomStatus,
+    endTime?: string,
   ): Promise<boolean> {
     const room = await this.roomRepo.findOne({ where: { roomId } });
     if (!room || room.creatorId !== requesterId) {
       return false;
     }
     room.status = newStatus;
+
+    // 수업 종료 시 endTime 저장 (프론트엔드에서 전달받은 타이머 값 사용)
+    if (newStatus === RoomStatus.FINISHED && endTime) {
+      room.endTime = endTime;
+    }
+
     await this.roomRepo.save(room);
     return true;
   }
@@ -165,19 +172,110 @@ export class RoomsService {
 
   // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』1
   async getRoomReport(roomId: number) {
+    // 1. 방 정보 조회 (수업명, 참가자 수)
+    const room = await this.roomRepo.findOne({ where: { roomId } });
+    if (!room) {
+      throw new BadRequestException('방을 찾을 수 없습니다.');
+    }
+
+    // 2. 제출 기록 조회 (relations을 통해 user와 problem 정보도 함께 조회)
     const submissions = await this.submissionRepo.find({
       where: { room_id: roomId },
-    }); //평균 정답률 1
+      relations: ['user', 'problem'],
+    });
 
-    if (submissions.length === 0) {
-      return { averageSuccessRate: 0 };
-    } //평균 정답률 2
+    // 3. 방에 할당된 문제들 조회
+    const roomProblems = await this.rpRepo.find({
+      where: { roomId },
+      relations: ['problem'],
+    });
+    const problems = roomProblems.map((rp) => rp.problem);
 
-    const correctSubmissions = submissions.filter((s) => s.is_passed).length;
-    const averageSuccessRate = Math.round(
-      (correctSubmissions / submissions.length) * 100,
-    ); //평균 정답률 3
+    // 4. 기본 통계 계산
+    const totalSubmissions = submissions.length;
+    const passedSubmissions = submissions.filter((s) => s.is_passed);
+    const averageSuccessRate =
+      totalSubmissions > 0
+        ? Math.round((passedSubmissions.length / totalSubmissions) * 100)
+        : 0;
 
-    return { averageSuccessRate }; //평균 정답률 4
+    // 5. 평균 풀이 시간 (고정값)
+    const averageSolveTime = '0:00';
+
+    // 6. 문제별 정답률 계산
+    const problemAnalysis = problems.map((problem) => {
+      const problemSubmissions = submissions.filter(
+        (s) => Number(s.problem_id) === problem.problemId,
+      );
+      const problemPassed = problemSubmissions.filter((s) => s.is_passed);
+      const successRate =
+        problemSubmissions.length > 0
+          ? Math.round((problemPassed.length / problemSubmissions.length) * 100)
+          : 0;
+      return {
+        title: problem.title,
+        successRate,
+      };
+    });
+
+    // 7. 가장 어려운/쉬운 문제 찾기
+    const problemsWithRates = problemAnalysis.filter((p) => p.successRate >= 0);
+    const hardestProblem =
+      problemsWithRates.length > 0
+        ? problemsWithRates.reduce((min, p) =>
+            p.successRate < min.successRate ? p : min,
+          )
+        : { title: 'N/A', successRate: 0 };
+    const easiestProblem =
+      problemsWithRates.length > 0
+        ? problemsWithRates.reduce((max, p) =>
+            p.successRate > max.successRate ? p : max,
+          )
+        : { title: 'N/A', successRate: 0 };
+
+    // 8. 학생별 정답률 계산
+    const studentSubmissions: { name: string; successRate: number }[] = [];
+    const students =
+      room.participants?.filter((p) => p.userType === 'student') || [];
+
+    for (const student of students) {
+      const studentSubs = submissions.filter(
+        (s) => s.user_id === student.userId,
+      );
+      const studentPassed = studentSubs.filter((s) => s.is_passed);
+      const successRate =
+        studentSubs.length > 0
+          ? Math.round((studentPassed.length / studentSubs.length) * 100)
+          : 0;
+
+      studentSubmissions.push({
+        name: student.name,
+        successRate,
+      });
+    }
+
+    // 9. 수업 시간 (타이머에서 저장된 시간 사용)
+    const classTime = room.endTime || '00:00:00';
+
+    return {
+      roomTitle: room.title,
+      averageSuccessRate,
+      averageSolveTime,
+      totalSubmissions,
+      totalProblems: problems.length,
+      totalStudents: students.length,
+      hardestProblem: {
+        name: hardestProblem.title || 'N/A',
+        rate: hardestProblem.successRate,
+      },
+      easiestProblem: {
+        name: easiestProblem.title || 'N/A',
+        rate: easiestProblem.successRate,
+      },
+      problemAnalysis,
+      studentSubmissions,
+      classTime,
+      classStatus: room.status,
+    };
   }
 }
