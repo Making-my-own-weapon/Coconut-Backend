@@ -250,7 +250,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleCodeSend(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: { collaborationId: string; code: string },
+    payload: { collaborationId: string; problemId: number; code: string },
   ) {
     // 학생이 보낸 코드를 선생님에게 전달 (저장된 teacherSocketId 사용)
     console.log('code:send 수신!', payload);
@@ -260,6 +260,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       // 저장된 teacherSocketId 사용 (학생이 보낸 teacherSocketId 대신)
       this.server.to(collaboration.teacherSocketId).emit('code:send', {
         collaborationId: payload.collaborationId,
+        problemId: payload.problemId,
         code: payload.code,
       });
 
@@ -282,8 +283,10 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('collab:edit')
   handleCollabEdit(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { collaborationId: string; code: string },
+    @MessageBody()
+    payload: { collaborationId: string; problemId: number; code: string },
   ) {
+    console.log('[Server] handleCollabEdit payload:', payload);
     // 1:1 협업 룸에만 broadcast (저장된 소켓 ID 사용)
     const collaboration = this.collaborations.get(payload.collaborationId);
     if (collaboration) {
@@ -294,11 +297,9 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       this.server.to(targetSocketId).emit('code:update', {
         collaborationId: payload.collaborationId,
+        problemId: payload.problemId,
         code: payload.code,
       });
-      // console.log(
-      //   `코드 동기화: ${payload.collaborationId} - ${client.id} -> ${targetSocketId}`,
-      // );
     } else {
       console.log(`협업 세션을 찾을 수 없음: ${payload.collaborationId}`);
     }
@@ -543,5 +544,21 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log(
       `${user.role} ${user.userName} left voice chat in room ${user.inviteCode}`,
     );
+  }
+
+  @SubscribeMessage('problem:selected')
+  handleProblemSelected(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string; problemId: number },
+  ) {
+    console.log('[Server] problem:selected 수신', payload);
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      const teacherSocketId = collaboration.teacherSocketId;
+      this.server.to(teacherSocketId).emit('problem:selected', {
+        collaborationId: payload.collaborationId,
+        problemId: payload.problemId,
+      });
+    }
   }
 }
