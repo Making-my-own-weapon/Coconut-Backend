@@ -3,7 +3,7 @@
   "networkMode": "bridge",
   "requiresCompatibilities": ["EC2"],
   "cpu": "256",
-  "memory": "512",
+  "memory": "256",
   "executionRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "containerDefinitions": [
@@ -14,6 +14,7 @@
       "portMappings": [
         {
           "containerPort": 3001,
+          "hostPort": 3001,
           "protocol": "tcp"
         }
       ],
@@ -25,6 +26,10 @@
         {
           "name": "PORT",
           "value": "3001"
+        },
+        {
+          "name": "CLIENT_URL",
+          "value": "http://3.34.48.6:3000"
         }
       ],
       "secrets": [
@@ -43,6 +48,14 @@
         {
           "name": "DB_DATABASE",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/db/database"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/JWT_SECRET"
+        },
+        {
+          "name": "REFRESH_JWT_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/REFRESH_JWT_SECRET"
         }
       ],
       "logConfiguration": {
@@ -55,13 +68,13 @@
       },
       "healthCheck": {
         "command": [
-          "CMD-SHELL",
+          "CMD-SHELL", 
           "curl -f http://localhost:3001/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,
-        "startPeriod": 60
+        "startPeriod": 120
       }
     }
   ]
