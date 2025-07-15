@@ -2,11 +2,28 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from '@aws-sdk/client-bedrock-runtime';
 import { RealtimeAnalysisResponseDto } from './dto/realtime-analysis.dto';
 import { DetailedAnalysisResponseDto } from './dto/detailed-analysis.dto';
 import { Problem } from '../problems/entities/problem.entity';
 import { AnalysisCacheService } from './cache/analysis-cache.service';
+
+// Bedrock 응답 타입 정의
+interface BedrockResponseBody {
+  output?: {
+    message?: {
+      content?: Array<{ text?: string }>;
+    };
+  };
+  content?: Array<{ text?: string }>;
+}
+
+interface BedrockError {
+  message?: string;
+}
 
 @Injectable()
 export class AnalysisService {
@@ -20,27 +37,27 @@ export class AnalysisService {
     private problemRepository: Repository<Problem>,
   ) {
     const bedrockApiKey = this.configService.get<string>('BEDROCK_API_KEY');
-    
+
     if (!bedrockApiKey) {
       throw new Error('BEDROCK_API_KEY not found in environment variables');
     }
-    
+
     // Bedrock API Key 디코딩 디버그
     try {
       console.log('Original API Key:', bedrockApiKey.substring(0, 20) + '...');
       const decodedKey = Buffer.from(bedrockApiKey, 'base64').toString('utf-8');
       console.log('Decoded key:', decodedKey);
-      
+
       // 일반적인 AWS 자격 증명 형식인지 확인
       if (decodedKey.includes('AKIA')) {
         // AWS Access Key 형식
         const parts = decodedKey.split(':');
         const accessKeyId = parts[0];
         const secretAccessKey = parts[1];
-        
+
         console.log('Access Key ID:', accessKeyId);
         console.log('Secret Key length:', secretAccessKey?.length);
-        
+
         this.bedrock = new BedrockRuntimeClient({
           region: 'ap-northeast-2',
           credentials: {
@@ -56,22 +73,26 @@ export class AnalysisService {
         });
       }
     } catch (error) {
-      console.error('Failed to process Bedrock API key:', error.message);
+      const bedrockError = error as BedrockError;
+      console.error('Failed to process Bedrock API key:', bedrockError.message);
       // 기본 AWS 자격 증명으로 폴백
       console.log('Falling back to default AWS credentials');
       this.bedrock = new BedrockRuntimeClient({
         region: 'ap-northeast-2',
       });
     }
-    
+
     console.log('🚀 AnalysisService initialized with Tree-sitter caching');
   }
 
-  async getRealtimeAnalysis(problemId: string, studentCode: string): Promise<RealtimeAnalysisResponseDto> {
+  async getRealtimeAnalysis(
+    problemId: string,
+    studentCode: string,
+  ): Promise<RealtimeAnalysisResponseDto> {
     const startTime = Date.now();
     this.logger.log(`🚀 Starting analysis for problemId: ${problemId}`);
     console.log(`🚀 Starting analysis for problemId: ${problemId}`);
-    
+
     // DB에서 문제 설명 가져오기
     const dbStart = Date.now();
     const problem = await this.problemRepository.findOne({
@@ -80,15 +101,18 @@ export class AnalysisService {
     const dbEnd = Date.now();
     this.logger.log(`📊 DB Query took: ${dbEnd - dbStart}ms`);
     console.log(`📊 DB Query took: ${dbEnd - dbStart}ms`);
-    
+
     if (!problem) {
       throw new NotFoundException(`Problem with ID ${problemId} not found`);
     }
-    
+
     const problemDescription = problem.description;
 
     // 캐시 조회
-    const cached = await this.cacheService.getCachedAnalysis(problemId, studentCode);
+    const cached = await this.cacheService.getCachedAnalysis(
+      problemId,
+      studentCode,
+    );
     if (cached) {
       const totalTime = Date.now() - startTime;
       this.logger.log(`✅ Cache HIT - Total time: ${totalTime}ms`);
@@ -125,9 +149,13 @@ ${studentCode}
     this.logger.log(`🤖 Calling Amazon Bedrock Nova Micro...`);
     this.logger.log(`📤 Sending to Bedrock:`);
     this.logger.log(`   - Problem ID: ${problemId}`);
-    this.logger.log(`   - Problem: ${problemDescription.substring(0, 100)}${problemDescription.length > 100 ? '...' : ''}`);
-    this.logger.log(`   - Student Code: ${studentCode.substring(0, 100)}${studentCode.length > 100 ? '...' : ''}`);
-    
+    this.logger.log(
+      `   - Problem: ${problemDescription.substring(0, 100)}${problemDescription.length > 100 ? '...' : ''}`,
+    );
+    this.logger.log(
+      `   - Student Code: ${studentCode.substring(0, 100)}${studentCode.length > 100 ? '...' : ''}`,
+    );
+
     const aiStart = Date.now();
     const command = new InvokeModelCommand({
       modelId: 'apac.amazon.nova-lite-v1:0',
@@ -135,19 +163,21 @@ ${studentCode}
         messages: [
           {
             role: 'user',
-            content: [{ 
-              text: `${systemPrompt}\n\n${userMessage}` 
-            }]
-          }
+            content: [
+              {
+                text: `${systemPrompt}\n\n${userMessage}`,
+              },
+            ],
+          },
         ],
         inferenceConfig: {
           temperature: 0.1,
           topP: 0.9,
-          maxTokens: 200
-        }
+          maxTokens: 200,
+        },
       }),
       contentType: 'application/json',
-      accept: 'application/json'
+      accept: 'application/json',
     });
 
     const response = await this.bedrock.send(command);
@@ -158,46 +188,65 @@ ${studentCode}
     if (!response.body) {
       throw new Error('Bedrock returned empty response');
     }
-    
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log('Bedrock response body:', JSON.stringify(responseBody, null, 2));
-    
+
+    const responseBody = JSON.parse(
+      new TextDecoder().decode(response.body),
+    ) as BedrockResponseBody;
+    console.log(
+      'Bedrock response body:',
+      JSON.stringify(responseBody, null, 2),
+    );
+
     // Nova Micro 응답 구조 확인
     let aiText = '';
-    if (responseBody.output && responseBody.output.message && responseBody.output.message.content) {
+    if (
+      responseBody.output &&
+      responseBody.output.message &&
+      responseBody.output.message.content &&
+      responseBody.output.message.content[0]?.text
+    ) {
       aiText = responseBody.output.message.content[0].text;
-    } else if (responseBody.content && responseBody.content[0]) {
+    } else if (responseBody.content && responseBody.content[0]?.text) {
       aiText = responseBody.content[0].text;
     } else {
       console.error('Unknown response structure:', responseBody);
       throw new Error('Unable to parse Bedrock response structure');
     }
-    
+
     console.log('AI response text:', aiText);
-    
+
     // 마크다운 코드 블록 제거
     let cleanedText = aiText.trim();
     if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      cleanedText = cleanedText
+        .replace(/^```json\s*/, '')
+        .replace(/\s*```$/, '');
     } else if (cleanedText.startsWith('```')) {
       cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
-    
+
     console.log('Cleaned AI text for parsing:', cleanedText);
-    
+
     // JSON 파싱 시도
     let analysisResult: RealtimeAnalysisResponseDto;
     try {
       analysisResult = JSON.parse(cleanedText) as RealtimeAnalysisResponseDto;
     } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
+      const parseErr = parseError as Error;
+      console.error('JSON parse error:', parseErr.message);
       console.error('Raw AI text:', aiText);
-      throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+      throw new Error(
+        `Failed to parse AI response as JSON: ${parseErr.message}`,
+      );
     }
 
     // 캐시에 저장
-    await this.cacheService.saveCachedAnalysis(problemId, studentCode, analysisResult);
-    
+    await this.cacheService.saveCachedAnalysis(
+      problemId,
+      studentCode,
+      analysisResult,
+    );
+
     const totalTime = Date.now() - startTime;
     this.logger.log(`🏁 Total Analysis Time: ${totalTime}ms`);
     console.log(`🏁 Total Analysis Time: ${totalTime}ms`);
@@ -206,14 +255,16 @@ ${studentCode}
   }
 
   async getDetailedAnalysis(
-    problemId: string, 
-    studentCode: string, 
-    staticAnalysisResult: string
+    problemId: string,
+    studentCode: string,
+    staticAnalysisResult: string,
   ): Promise<DetailedAnalysisResponseDto> {
     const startTime = Date.now();
-    this.logger.log(`🚀 Starting detailed analysis for problemId: ${problemId}`);
+    this.logger.log(
+      `🚀 Starting detailed analysis for problemId: ${problemId}`,
+    );
     console.log(`🚀 Starting detailed analysis for problemId: ${problemId}`);
-    
+
     // DB에서 문제 설명 가져오기
     const dbStart = Date.now();
     const problem = await this.problemRepository.findOne({
@@ -222,11 +273,11 @@ ${studentCode}
     const dbEnd = Date.now();
     this.logger.log(`📊 DB Query took: ${dbEnd - dbStart}ms`);
     console.log(`📊 DB Query took: ${dbEnd - dbStart}ms`);
-    
+
     if (!problem) {
       throw new NotFoundException(`Problem with ID ${problemId} not found`);
     }
-    
+
     const problemDescription = problem.description;
 
     // 상세 분석용 프롬프트
@@ -265,32 +316,40 @@ ${studentCode}
 # 정적 분석 결과
 ${staticAnalysisResult}`;
 
-    this.logger.log(`🤖 Calling Amazon Bedrock Claude Sonnet 4 for detailed analysis...`);
+    this.logger.log(
+      `🤖 Calling Amazon Bedrock Claude Sonnet 4 for detailed analysis...`,
+    );
     this.logger.log(`📤 Sending to Bedrock:`);
     this.logger.log(`   - Problem ID: ${problemId}`);
-    this.logger.log(`   - Problem: ${problemDescription.substring(0, 100)}${problemDescription.length > 100 ? '...' : ''}`);
-    this.logger.log(`   - Student Code: ${studentCode.substring(0, 100)}${studentCode.length > 100 ? '...' : ''}`);
+    this.logger.log(
+      `   - Problem: ${problemDescription.substring(0, 100)}${problemDescription.length > 100 ? '...' : ''}`,
+    );
+    this.logger.log(
+      `   - Student Code: ${studentCode.substring(0, 100)}${studentCode.length > 100 ? '...' : ''}`,
+    );
     this.logger.log(`   - Static Analysis: ${staticAnalysisResult}`);
-    
+
     const aiStart = Date.now();
     const command = new InvokeModelCommand({
       modelId: 'apac.anthropic.claude-sonnet-4-20250514-v1:0',
       body: JSON.stringify({
-        anthropic_version: "bedrock-2023-05-31",
+        anthropic_version: 'bedrock-2023-05-31',
         messages: [
           {
             role: 'user',
-            content: [{ 
-              type: 'text',
-              text: `${detailedSystemPrompt}\n\n${userMessage}` 
-            }]
-          }
+            content: [
+              {
+                type: 'text',
+                text: `${detailedSystemPrompt}\n\n${userMessage}`,
+              },
+            ],
+          },
         ],
         max_tokens: 2000,
-        temperature: 0.1
+        temperature: 0.1,
       }),
       contentType: 'application/json',
-      accept: 'application/json'
+      accept: 'application/json',
     });
 
     const response = await this.bedrock.send(command);
@@ -301,41 +360,56 @@ ${staticAnalysisResult}`;
     if (!response.body) {
       throw new Error('Bedrock returned empty response');
     }
-    
-    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    console.log('Bedrock detailed response body:', JSON.stringify(responseBody, null, 2));
-    
+
+    const responseBody = JSON.parse(
+      new TextDecoder().decode(response.body),
+    ) as BedrockResponseBody;
+    console.log(
+      'Bedrock detailed response body:',
+      JSON.stringify(responseBody, null, 2),
+    );
+
     // Nova Micro 응답 구조 확인
     let aiText = '';
-    if (responseBody.output && responseBody.output.message && responseBody.output.message.content) {
+    if (
+      responseBody.output &&
+      responseBody.output.message &&
+      responseBody.output.message.content &&
+      responseBody.output.message.content[0]?.text
+    ) {
       aiText = responseBody.output.message.content[0].text;
-    } else if (responseBody.content && responseBody.content[0]) {
+    } else if (responseBody.content && responseBody.content[0]?.text) {
       aiText = responseBody.content[0].text;
     } else {
       console.error('Unknown response structure:', responseBody);
       throw new Error('Unable to parse Bedrock response structure');
     }
-    
+
     console.log('AI detailed response text:', aiText);
-    
+
     // 마크다운 코드 블록 제거
     let cleanedText = aiText.trim();
     if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      cleanedText = cleanedText
+        .replace(/^```json\s*/, '')
+        .replace(/\s*```$/, '');
     } else if (cleanedText.startsWith('```')) {
       cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
     }
-    
+
     console.log('Cleaned AI text for parsing:', cleanedText);
-    
+
     // JSON 파싱 시도
     let analysisResult: DetailedAnalysisResponseDto;
     try {
       analysisResult = JSON.parse(cleanedText) as DetailedAnalysisResponseDto;
     } catch (parseError) {
-      console.error('JSON parse error:', parseError.message);
+      const parseErr = parseError as Error;
+      console.error('JSON parse error:', parseErr.message);
       console.error('Raw AI text:', aiText);
-      throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+      throw new Error(
+        `Failed to parse AI response as JSON: ${parseErr.message}`,
+      );
     }
 
     // 상세 분석은 캐시하지 않음 (항상 최고 품질)
@@ -345,5 +419,4 @@ ${staticAnalysisResult}`;
 
     return analysisResult;
   }
-
 }

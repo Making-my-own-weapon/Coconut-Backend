@@ -9,11 +9,7 @@ import { Problem } from '../problems/entities/problem.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([Problem])],
   controllers: [AnalysisController],
-  providers: [
-    AnalysisService,
-    AnalysisCacheService,
-    TreeSitterParserService,
-  ],
+  providers: [AnalysisService, AnalysisCacheService, TreeSitterParserService],
   exports: [AnalysisService],
 })
 export class AnalysisModule {}
