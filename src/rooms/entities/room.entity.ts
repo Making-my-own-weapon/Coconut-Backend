@@ -54,4 +54,7 @@ export class Room {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @Column({ name: 'end_time', type: 'varchar', length: 8, nullable: true })
+  endTime: string | null;
 }

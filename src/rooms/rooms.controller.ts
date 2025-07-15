@@ -82,6 +82,7 @@ export class RoomsController {
       Number(roomId),
       userId,
       updateDto.status,
+      updateDto.endTime,
     );
     if (!success) {
       throw new ForbiddenException('방 생성자만 상태를 변경할 수 있습니다.');
