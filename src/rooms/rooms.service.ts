@@ -12,6 +12,7 @@ import { Problem } from '../problems/entities/problem.entity';
 import { CreateRoomDto } from './dtos/create-room.dto';
 import { UsersService } from '../users/users.service';
 import { Submission } from '../submissions/entities/submission.entity';
+import { EditorGateway } from '../editor/editor.gateway';
 
 @Injectable()
 export class RoomsService {
@@ -25,6 +26,7 @@ export class RoomsService {
     @InjectRepository(Submission)
     private readonly submissionRepo: Repository<Submission>,
     private readonly usersService: UsersService,
+    private readonly editorGateway: EditorGateway,
   ) {}
 
   private generateInviteCode(): string {
@@ -156,6 +158,12 @@ export class RoomsService {
     }
 
     await this.roomRepo.save(room);
+
+    if (newStatus === RoomStatus.FINISHED) {
+      console.log(`[Backend] Emitting class:ended for room ${roomId}`);
+      const roomName = `room_${room.inviteCode}`;
+      this.editorGateway.server.to(roomName).emit('class:ended', { roomId });
+    }
     return true;
   }
 
