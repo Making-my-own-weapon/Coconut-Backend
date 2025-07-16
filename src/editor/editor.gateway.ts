@@ -290,7 +290,12 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleCursorUpdate(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: { collaborationId: string; lineNumber: number; column: number },
+    payload: {
+      collaborationId: string;
+      lineNumber: number;
+      column: number;
+      problemId: number;
+    },
   ) {
     const collaboration = this.collaborations.get(payload.collaborationId);
     if (collaboration) {
@@ -302,6 +307,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(targetSocketId).emit('cursor:update', {
         lineNumber: payload.lineNumber,
         column: payload.column,
+        problemId: payload.problemId,
       });
       // (선택) 로그
       // console.log(
@@ -369,4 +375,40 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // 음성채팅 관련 이벤트 핸들러들
   // (handleVoiceJoin, handleVoiceSignal, handleVoiceLeave 메서드 전체 삭제)
+
+  @SubscribeMessage('teacher:requestStudentCode')
+  handleTeacherRequestStudentCode(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { collaborationId: string; problemId: number },
+  ) {
+    // collaborationId로 학생 소켓 ID 찾기
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      // 선생님이 보낸 요청을 학생에게 전달
+      this.server
+        .to(collaboration.studentSocketId)
+        .emit('teacher:requestStudentCode', {
+          collaborationId: payload.collaborationId,
+          problemId: payload.problemId,
+        });
+    }
+  }
+
+  @SubscribeMessage('student:sendCode')
+  handleStudentSendCode(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { collaborationId: string; problemId: number; code: string },
+  ) {
+    // collaborationId로 선생님 소켓 ID 찾기
+    const collaboration = this.collaborations.get(payload.collaborationId);
+    if (collaboration) {
+      // 학생이 보낸 코드를 선생님에게 전달
+      this.server.to(collaboration.teacherSocketId).emit('student:sendCode', {
+        collaborationId: payload.collaborationId,
+        problemId: payload.problemId,
+        code: payload.code,
+      });
+    }
+  }
 }
