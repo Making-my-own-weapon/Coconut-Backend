@@ -62,6 +62,8 @@ export class RoomsService {
       ],
     });
     const saved = await this.roomRepo.save(room);
+    // 방 생성자(선생님)의 roomId 갱신
+    await this.usersService.updateUserRoomId(creatorId, saved.roomId);
     return { roomId: saved.roomId, inviteCode };
   }
 
@@ -86,6 +88,8 @@ export class RoomsService {
     if (!room.participants.some((p) => p.userId === userId)) {
       room.participants.push({ userId, name: userName, userType: 'student' });
       await this.roomRepo.save(room);
+      // 참가자의 roomId 갱신
+      await this.usersService.updateUserRoomId(userId, room.roomId);
     }
 
     return {
@@ -163,6 +167,8 @@ export class RoomsService {
       console.log(`[Backend] Emitting class:ended for room ${roomId}`);
       const roomName = `room_${room.inviteCode}`;
       this.editorGateway.server.to(roomName).emit('class:ended', { roomId });
+      // 방 생성자(선생님)의 roomId null로 갱신
+      await this.usersService.updateUserRoomId(requesterId, null);
     }
     return true;
   }
@@ -176,6 +182,8 @@ export class RoomsService {
     }
 
     await this.roomRepo.remove(room);
+    // 방 생성자(선생님)의 roomId null로 갱신
+    await this.usersService.updateUserRoomId(requesterId, null);
   }
 
   // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』1

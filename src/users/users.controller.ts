@@ -7,6 +7,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Patch,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,5 +29,13 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT) // 성공 시 204 No Content 응답
   async deleteCurrentUser(@Req() req: RequestWithUser): Promise<void> {
     return this.usersService.deleteUser(req.user.id);
+  }
+
+  /** 학생이 방 나가기 (roomId null 처리) */
+  @Patch('me/leave-room')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async leaveRoom(@Req() req: RequestWithUser): Promise<void> {
+    await this.usersService.leaveRoom(req.user.id);
   }
 }
