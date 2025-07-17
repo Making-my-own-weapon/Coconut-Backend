@@ -1,3 +1,5 @@
+// voice.gateway.ts -> 음성채팅 소켓 서버 코드 simple-peer / p2p 방식 사용
+// 현재 사용하지 않음 -> openvidu sfu 방식으로 전환
 import {
   WebSocketGateway,
   SubscribeMessage,
