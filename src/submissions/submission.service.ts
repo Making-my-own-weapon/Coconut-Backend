@@ -12,11 +12,14 @@ export class SubmissionService {
   private sqsClient: SQSClient;
   private readonly QUEUE_URLS = {
     light:
-      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-light-queue',
+      process.env.SQS_LIGHT_QUEUE_URL ||
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-light-new-queue',
     medium:
-      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-medium-queue',
+      process.env.SQS_MEDIUM_QUEUE_URL ||
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-medium-new-queue',
     heavy:
-      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-heavy-queue',
+      process.env.SQS_HEAVY_QUEUE_URL ||
+      'https://sqs.ap-northeast-2.amazonaws.com/928747727316/coconut-grading-heavy-new-queue',
   };
 
   constructor(
