@@ -317,7 +317,7 @@ ${studentCode}
 ${staticAnalysisResult}`;
 
     this.logger.log(
-      `🤖 Calling Amazon Bedrock Claude Sonnet 4 for detailed analysis...`,
+      `🤖 Calling Amazon Bedrock Nova Pro for detailed analysis...`,
     );
     this.logger.log(`📤 Sending to Bedrock:`);
     this.logger.log(`   - Problem ID: ${problemId}`);
@@ -331,22 +331,23 @@ ${staticAnalysisResult}`;
 
     const aiStart = Date.now();
     const command = new InvokeModelCommand({
-      modelId: 'apac.anthropic.claude-sonnet-4-20250514-v1:0',
+      modelId: 'apac.amazon.nova-pro-v1:0',
       body: JSON.stringify({
-        anthropic_version: 'bedrock-2023-05-31',
         messages: [
           {
             role: 'user',
             content: [
               {
-                type: 'text',
                 text: `${detailedSystemPrompt}\n\n${userMessage}`,
               },
             ],
           },
         ],
-        max_tokens: 2000,
-        temperature: 0.1,
+        inferenceConfig: {
+          temperature: 0.1,
+          topP: 0.9,
+          maxTokens: 2000,
+        },
       }),
       contentType: 'application/json',
       accept: 'application/json',
@@ -354,8 +355,8 @@ ${staticAnalysisResult}`;
 
     const response = await this.bedrock.send(command);
     const aiEnd = Date.now();
-    this.logger.log(`🧠 Claude Sonnet 4 took: ${aiEnd - aiStart}ms`);
-    console.log(`🧠 Claude Sonnet 4 took: ${aiEnd - aiStart}ms`);
+    this.logger.log(`🧠 Nova Pro took: ${aiEnd - aiStart}ms`);
+    console.log(`🧠 Nova Pro took: ${aiEnd - aiStart}ms`);
 
     if (!response.body) {
       throw new Error('Bedrock returned empty response');
