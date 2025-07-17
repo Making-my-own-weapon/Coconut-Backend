@@ -282,6 +282,21 @@ export class RoomsService {
       },
       problemAnalysis,
       studentSubmissions,
+      submissions: submissions.map((sub) => ({
+        submission_id: sub.submission_id,
+        user_id: sub.user_id,
+        problem_id: sub.problem_id,
+        code: sub.code,
+        status: sub.status,
+        is_passed: sub.is_passed,
+        passed_tc_count: sub.passed_tc_count,
+        total_tc_count: sub.total_tc_count,
+        execution_time_ms: sub.execution_time_ms,
+        memory_usage_kb: sub.memory_usage_kb,
+        created_at: sub.created_at,
+        user: sub.user,
+        problem: sub.problem,
+      })), // 제출 데이터 추가
       classTime,
       classStatus: room.status,
     };
