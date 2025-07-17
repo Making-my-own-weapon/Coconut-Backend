@@ -12,6 +12,7 @@ import { EditorModule } from './editor/editor.module';
 import { AnalysisModule } from './analysis/analysis.module';
 import { HealthController } from './health/health.controller';
 import { VoiceModule } from './voice/voice.module';
+import { OpenviduModule } from './openvidu/openvidu.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { VoiceModule } from './voice/voice.module';
     SubmissionModule,
     AnalysisModule,
     VoiceModule,
+    OpenviduModule,
   ],
   controllers: [HealthController],
   providers: [
