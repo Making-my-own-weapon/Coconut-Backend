@@ -8,10 +8,12 @@ import { Repository } from 'typeorm';
 import { Room } from '../rooms/entities/room.entity';
 import { Problem } from './entities/problem.entity';
 import { RoomProblem } from './entities/room-problem.entity';
+import { Testcase } from './entities/testcase.entity';
 import { CreateDbProblemDto } from './dtos/create-db-problem.dto';
 import { UpdateProblemDto } from './dtos/update-problem.dto';
 import { ProblemSummaryDto } from './dtos/problem-summary.dto';
 import { EditorGateway } from '../editor/editor.gateway';
+import { S3Service } from '../common/s3.service';
 
 @Injectable()
 export class ProblemsService {
@@ -25,10 +27,12 @@ export class ProblemsService {
     @InjectRepository(Room)
     private readonly roomRepo: Repository<Room>, // 방 정보 조회용
     private readonly editorGateway: EditorGateway, // ← 추가
+    private readonly s3Service: S3Service, // S3 서비스 주입
   ) {}
 
-  /** 1) DB에 새 문제 생성 */
+  /** 1) DB에 새 문제 생성 (S3 업로드 포함) */
   async createProblem(dto: CreateDbProblemDto): Promise<Problem> {
+    // 1. 문제 먼저 생성 (testcases는 나중에 추가)
     const problem = this.problemRepo.create({
       title: dto.title,
       executionTimeLimitMs: dto.timeLimitMs,
@@ -37,12 +41,51 @@ export class ProblemsService {
       solveTimeLimitMin: dto.solveTimeLimitMin,
       source: dto.source,
       categories: dto.categories,
-      testcases: dto.testCases.map((tc) => ({
-        inputTc: tc.inputTc,
-        outputTc: tc.outputTc,
-      })),
+      // 1번 테스트케이스를 example_tc에 저장
+      exampleTc:
+        dto.testCases.length > 0
+          ? JSON.stringify({
+              input: dto.testCases[0].inputTc,
+              output: dto.testCases[0].outputTc,
+            })
+          : undefined,
     });
-    return this.problemRepo.save(problem);
+
+    const savedProblem = await this.problemRepo.save(problem);
+
+    // 2. 모든 테스트케이스를 S3에 업로드하고 DB에 저장
+    for (let i = 0; i < dto.testCases.length; i++) {
+      const tc = dto.testCases[i];
+      const folderName = `problems/${savedProblem.problemId}`;
+
+      // S3 키 생성
+      const inputKey = `${folderName}/input_${i + 1}.txt`;
+      const outputKey = `${folderName}/output_${i + 1}.txt`;
+
+      try {
+        // S3에 업로드
+        await this.s3Service.uploadFile(tc.inputTc, inputKey);
+        await this.s3Service.uploadFile(tc.outputTc, outputKey);
+
+        // testcases 테이블에 S3 키 저장 (TypeORM 관계 사용)
+        const testcase = this.problemRepo.manager
+          .getRepository(Testcase)
+          .create({
+            problem: savedProblem, // 관계를 통한 연결
+            inputTc: inputKey,
+            outputTc: outputKey,
+          });
+        await this.problemRepo.manager.getRepository(Testcase).save(testcase);
+      } catch (error) {
+        // S3 업로드 실패 시 문제 삭제
+        await this.problemRepo.delete(savedProblem.problemId);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`테스트케이스 업로드 실패: ${errorMessage}`);
+      }
+    }
+
+    return savedProblem;
   }
 
   /** 2) 방에 문제 할당 (호스트만)*/
