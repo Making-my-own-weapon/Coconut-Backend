@@ -7,6 +7,7 @@ import { RoomProblem } from './entities/room-problem.entity';
 import { Testcase } from './entities/testcase.entity';
 import { Room } from '../rooms/entities/room.entity'; // ← 추가
 import { EditorModule } from '../editor/editor.module'; // ← 추가
+import { S3Service } from '../common/s3.service'; // S3 서비스 추가
 
 @Module({
   imports: [
@@ -14,6 +15,6 @@ import { EditorModule } from '../editor/editor.module'; // ← 추가
     EditorModule,
   ], // ← EditorModule 추가
   controllers: [ProblemsController],
-  providers: [ProblemsService],
+  providers: [ProblemsService, S3Service], // S3 서비스 등록
 })
 export class ProblemsModule {}
