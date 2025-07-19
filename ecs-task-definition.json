@@ -22,17 +22,17 @@
         {
           "name": "NODE_ENV",
           "value": "production"
-        },
-        {
-          "name": "PORT",
-          "value": "3001"
-        },
-        {
-          "name": "CLIENT_URL",
-          "value": "http://3.34.48.6:3000"
         }
       ],
       "secrets": [
+        {
+          "name": "PORT", 
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/port"
+        },
+        {
+          "name": "CORS_ORIGIN",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/cors/origin"
+        },
         {
           "name": "DB_HOST",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/db/host"
@@ -56,6 +56,38 @@
         {
           "name": "REFRESH_JWT_SECRET",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/REFRESH_JWT_SECRET"
+        },
+        {
+          "name": "REDIS_HOST",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/redis/host"
+        },
+        {
+          "name": "REDIS_PORT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/redis/port"
+        },
+        {
+          "name": "BEDROCK_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/bedrock/api_key"
+        },
+        {
+          "name": "AWS_SQS_LIGHT_QUEUE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/light_queue_url"
+        },
+        {
+          "name": "AWS_SQS_MEDIUM_QUEUE_URL", 
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/medium_queue_url"
+        },
+        {
+          "name": "AWS_SQS_HEAVY_QUEUE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/heavy_queue_url"
+        },
+        {
+          "name": "OPENVIDU_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/openvidu/url"
+        },
+        {
+          "name": "OPENVIDU_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/openvidu/secret"
         }
       ],
       "logConfiguration": {
