@@ -1,7 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -62,5 +67,34 @@ export class UsersService {
     if (deleteResult.affected === 0) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
+  }
+
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    // 1. 사용자 조회
+    const user = await this.findOneById(userId);
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    // 2. 현재 비밀번호 검증
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다.');
+    }
+
+    // 3. 새 비밀번호 해싱
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // 4. 비밀번호 업데이트
+    await this.userRepository.update(userId, {
+      password: hashedNewPassword,
+    });
   }
 }
