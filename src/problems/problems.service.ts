@@ -31,7 +31,10 @@ export class ProblemsService {
   ) {}
 
   /** 1) DB에 새 문제 생성 (S3 업로드 포함) */
-  async createProblem(dto: CreateDbProblemDto): Promise<Problem> {
+  async createProblem(
+    dto: CreateDbProblemDto,
+    creatorId?: number,
+  ): Promise<Problem> {
     // 1. 문제 먼저 생성 (testcases는 나중에 추가)
     const problem = this.problemRepo.create({
       title: dto.title,
@@ -41,6 +44,7 @@ export class ProblemsService {
       solveTimeLimitMin: dto.solveTimeLimitMin,
       source: dto.source,
       categories: dto.categories,
+      creator: { id: creatorId },
       // 1번 테스트케이스를 example_tc에 저장
       exampleTc:
         dto.testCases.length > 0
@@ -232,5 +236,27 @@ export class ProblemsService {
         .to(`room_${room.inviteCode}`)
         .emit('problem:updated', { roomId: room.roomId });
     }
+  }
+
+  /** 내가 만든 문제 목록 조회 */
+  async getMyProblems(creatorId: number): Promise<Problem[]> {
+    return this.problemRepo.find({ where: { creator: { id: creatorId } } });
+  }
+
+  /** DB에서 문제 영구 삭제 (생성자만) */
+  async deleteProblem(problemId: number, userId: number): Promise<void> {
+    // findOneBy 대신 findOne과 relations를 사용합니다.
+    const problem = await this.problemRepo.findOne({
+      where: { problemId },
+      relations: ['creator'],
+    });
+
+    if (!problem) throw new NotFoundException('Problem not found');
+
+    // problem.creator.id로 접근합니다.
+    if (problem.creator.id !== userId)
+      throw new ForbiddenException('문제를 삭제할 권한이 없습니다.');
+
+    await this.problemRepo.remove(problem);
   }
 }
