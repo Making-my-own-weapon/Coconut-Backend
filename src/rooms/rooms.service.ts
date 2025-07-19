@@ -62,6 +62,8 @@ export class RoomsService {
       ],
     });
     const saved = await this.roomRepo.save(room);
+    // 방 생성자(선생님)의 roomId 갱신
+    await this.usersService.updateUserRoomId(creatorId, saved.roomId);
     return { roomId: saved.roomId, inviteCode };
   }
 
@@ -86,6 +88,8 @@ export class RoomsService {
     if (!room.participants.some((p) => p.userId === userId)) {
       room.participants.push({ userId, name: userName, userType: 'student' });
       await this.roomRepo.save(room);
+      // 참가자의 roomId 갱신
+      await this.usersService.updateUserRoomId(userId, room.roomId);
     }
 
     return {
@@ -163,6 +167,8 @@ export class RoomsService {
       console.log(`[Backend] Emitting class:ended for room ${roomId}`);
       const roomName = `room_${room.inviteCode}`;
       this.editorGateway.server.to(roomName).emit('class:ended', { roomId });
+      // 방 생성자(선생님)의 roomId null로 갱신
+      await this.usersService.updateUserRoomId(requesterId, null);
     }
     return true;
   }
@@ -176,6 +182,8 @@ export class RoomsService {
     }
 
     await this.roomRepo.remove(room);
+    // 방 생성자(선생님)의 roomId null로 갱신
+    await this.usersService.updateUserRoomId(requesterId, null);
   }
 
   // 여기는 리포트 페이지 관련 로직들 모아둔 곳입니다~『안채호』1
@@ -207,6 +215,24 @@ export class RoomsService {
         ? Math.round((passedSubmissions.length / totalSubmissions) * 100)
         : 0;
 
+    // 4-1. 첫 제출에 통과한 문제 수 계산
+    const firstSubmissionResults = new Map<string, boolean>();
+    submissions
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      )
+      .forEach((submission) => {
+        const key = `${submission.user_id}-${submission.problem_id}`;
+        if (!firstSubmissionResults.has(key)) {
+          firstSubmissionResults.set(key, submission.is_passed);
+        }
+      });
+
+    const firstSubmissionPassed = Array.from(
+      firstSubmissionResults.values(),
+    ).filter((passed) => passed).length;
+
     // 5. 평균 풀이 시간 (고정값)
     const averageSolveTime = '0:00';
 
@@ -226,7 +252,133 @@ export class RoomsService {
       };
     });
 
-    // 7. 가장 어려운/쉬운 문제 찾기
+    // 카테고리별 성과 계산
+    const categoryStats = new Map<
+      string,
+      {
+        total: number;
+        passed: number;
+        problems: Set<string>;
+        submissions: Submission[];
+        students: Set<number>;
+      }
+    >();
+
+    // 카테고리별 통계 수집
+    submissions.forEach((submission) => {
+      if (submission.problem && submission.problem.categories) {
+        submission.problem.categories.forEach((category) => {
+          if (!categoryStats.has(category)) {
+            categoryStats.set(category, {
+              total: 0,
+              passed: 0,
+              problems: new Set(),
+              submissions: [],
+              students: new Set(),
+            });
+          }
+          const stats = categoryStats.get(category)!;
+          stats.total++;
+          stats.problems.add(submission.problem.title);
+          stats.submissions.push(submission);
+          stats.students.add(submission.user_id);
+
+          if (submission.is_passed) {
+            stats.passed++;
+          }
+        });
+      }
+    });
+
+    // 카테고리별 정답률 및 상세 정보 계산
+    const categoryAnalysis = Array.from(categoryStats.entries()).map(
+      ([category, stats]) => {
+        const uniqueProblems = Array.from(stats.problems);
+
+        // 학생별 성과 계산
+        const studentPerformance = Array.from(stats.students).map(
+          (studentId) => {
+            const studentSubmissions = stats.submissions.filter(
+              (s) => s.user_id === studentId,
+            );
+            const studentPassed = studentSubmissions.filter(
+              (s) => s.is_passed,
+            ).length;
+            const student = studentSubmissions[0]?.user;
+
+            return {
+              studentId,
+              studentName: student?.name || `Student ${studentId}`,
+              submissions: studentSubmissions.length,
+              passed: studentPassed,
+              successRate:
+                studentSubmissions.length > 0
+                  ? Math.round(
+                      (studentPassed / studentSubmissions.length) * 100,
+                    )
+                  : 0,
+            };
+          },
+        );
+
+        // 첫 제출 성공률 계산
+        const firstSubmissionStats = new Map<string, boolean>();
+        stats.submissions.forEach((submission) => {
+          const key = `${submission.user_id}-${submission.problem_id}`;
+          if (!firstSubmissionStats.has(key)) {
+            firstSubmissionStats.set(key, submission.is_passed);
+          }
+        });
+        const firstSubmissionSuccesses = Array.from(
+          firstSubmissionStats.values(),
+        ).filter((passed) => passed).length;
+        const firstSubmissionRate =
+          firstSubmissionStats.size > 0
+            ? Math.round(
+                (firstSubmissionSuccesses / firstSubmissionStats.size) * 100,
+              )
+            : 0;
+
+        return {
+          name: category,
+          successRate:
+            stats.total > 0
+              ? Math.round((stats.passed / stats.total) * 100)
+              : 0,
+          totalSubmissions: stats.total,
+          passedSubmissions: stats.passed,
+          uniqueProblems: uniqueProblems.length,
+          problemTitles: uniqueProblems,
+          participatingStudents: stats.students.size,
+          studentPerformance: studentPerformance,
+          firstSubmissionSuccessRate: firstSubmissionRate,
+          averageAttemptsPerProblem:
+            stats.total / Math.max(uniqueProblems.length, 1),
+        };
+      },
+    );
+
+    // 카테고리 정렬 (정답률 높은 순)
+    categoryAnalysis.sort((a, b) => b.successRate - a.successRate);
+
+    // 베스트/워스트 카테고리 찾기
+    const categoriesWithData = categoryAnalysis.filter(
+      (c) => c.totalSubmissions > 0,
+    );
+    const bestCategory =
+      categoriesWithData.length > 0
+        ? categoriesWithData.reduce((max, c) =>
+            c.successRate > max.successRate ? c : max,
+          )
+        : { name: 'N/A', successRate: 0 };
+    const worstCategory =
+      categoriesWithData.length > 0
+        ? categoriesWithData.reduce((min, c) =>
+            c.successRate < min.successRate ? c : min,
+          )
+        : { name: 'N/A', successRate: 0 };
+
+    // 문제별 난이도 분석
     const problemsWithRates = problemAnalysis.filter((p) => p.successRate >= 0);
     const hardestProblem =
       problemsWithRates.length > 0
@@ -241,7 +393,7 @@ export class RoomsService {
           )
         : { title: 'N/A', successRate: 0 };
 
-    // 8. 학생별 정답률 계산
+    // 학생별 정답률 계산
     const studentSubmissions: { name: string; successRate: number }[] = [];
     const students =
       room.participants?.filter((p) => p.userType === 'student') || [];
@@ -262,7 +414,7 @@ export class RoomsService {
       });
     }
 
-    // 9. 수업 시간 (타이머에서 저장된 시간 사용)
+    // 수업 시간
     const classTime = room.endTime || '00:00:00';
 
     return {
@@ -272,6 +424,7 @@ export class RoomsService {
       totalSubmissions,
       totalProblems: problems.length,
       totalStudents: students.length,
+      firstSubmissionPassed, // 첫 제출에 통과한 문제 수
       hardestProblem: {
         name: hardestProblem.title || 'N/A',
         rate: hardestProblem.successRate,
@@ -281,6 +434,9 @@ export class RoomsService {
         rate: easiestProblem.successRate,
       },
       problemAnalysis,
+      categoryAnalysis,
+      bestCategory,
+      worstCategory,
       studentSubmissions,
       submissions: submissions.map((sub) => ({
         submission_id: sub.submission_id,

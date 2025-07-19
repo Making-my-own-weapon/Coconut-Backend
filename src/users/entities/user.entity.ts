@@ -10,7 +10,6 @@ import {
 
 @Entity('users')
 export class User {
-
   @PrimaryGeneratedColumn({ name: 'user_id' }) // DB 컬럼명은 'user_id'
   id: number; // 코드 내에서는 'id'로 사용
 
@@ -43,4 +42,7 @@ export class User {
   createdProblems: Problem[];
 
   // room_id 관련 코드는 Room 엔티티를 만든 후에 추가하겠습니다.
+
+  @Column({ name: 'room_id', type: 'int', nullable: true })
+  roomId?: number | null;
 }

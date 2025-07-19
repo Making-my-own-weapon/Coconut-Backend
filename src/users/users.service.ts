@@ -39,6 +39,21 @@ export class UsersService {
     return this.userRepository.findOneBy({ id });
   }
 
+  async updateUserRoomId(userId: number, roomId: number | null): Promise<User> {
+    await this.userRepository.update(userId, { roomId });
+    const updatedUser = await this.userRepository.findOneBy({ id: userId });
+    if (!updatedUser) {
+      throw new NotFoundException(
+        `ID가 ${userId}인 사용자를 찾을 수 없습니다.`,
+      );
+    }
+    return updatedUser;
+  }
+
+  async leaveRoom(userId: number): Promise<User> {
+    return this.updateUserRoomId(userId, null);
+  }
+
   async deleteUser(userId: number): Promise<void> {
     // TypeORM의 delete 메서드를 사용해 id가 일치하는 유저를 삭제합니다.
     const deleteResult = await this.userRepository.delete({ id: userId });
