@@ -37,7 +37,10 @@ export class AnalysisCacheService {
     private treeSitterParser: TreeSitterParserService,
   ) {
     this.redis = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      host: this.configService.get<string>(
+        'REDIS_HOST',
+        'coconut-cache-jos2tj.serverless.apn2.cache.amazonaws.com',
+      ),
       port: this.configService.get<number>('REDIS_PORT', 6379),
     });
 
