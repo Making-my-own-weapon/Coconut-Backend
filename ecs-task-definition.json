@@ -2,8 +2,8 @@
   "family": "coconut-backend-task",
   "networkMode": "bridge",
   "requiresCompatibilities": ["EC2"],
-  "cpu": "256",
-  "memory": "256",
+  "cpu": "512",
+  "memory": "1024",
   "executionRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "containerDefinitions": [
@@ -103,10 +103,10 @@
           "CMD-SHELL", 
           "curl -f http://localhost:3001/health || exit 1"
         ],
-        "interval": 30,
-        "timeout": 5,
-        "retries": 3,
-        "startPeriod": 120
+        "interval": 60,
+        "timeout": 10,
+        "retries": 5,
+        "startPeriod": 180
       }
     }
   ]
