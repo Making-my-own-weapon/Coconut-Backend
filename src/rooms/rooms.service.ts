@@ -168,7 +168,7 @@ export class RoomsService {
       const roomName = `room_${room.inviteCode}`;
       this.editorGateway.server.to(roomName).emit('class:ended', { roomId });
       // 방 생성자(선생님)의 roomId null로 갱신
-      await this.usersService.updateUserRoomId(requesterId, null);
+      //await this.usersService.updateUserRoomId(requesterId, null);
     }
     return true;
   }
