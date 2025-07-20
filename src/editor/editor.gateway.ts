@@ -58,6 +58,10 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     const user = this.connectedUsers.get(client.id);
     if (user) {
+      console.log(
+        `사용자 연결 해제: ${user.userName} (${user.role}) - ${client.id}`,
+      );
+
       // 방에서 제거
       const users = this.roomUsers.get(user.roomId);
       if (users) {
@@ -83,7 +87,7 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
           this.server.to(targetSocketId).emit('collab:ended');
           this.collaborations.delete(collaborationId);
           console.log(
-            `사용자 연결 해제로 인한 협업 세션 종료: ${collaborationId}`,
+            `사용자 연결 해제로 인한 협업 세션 종료: ${collaborationId} (${user.userName})`,
           );
         }
       }
@@ -190,6 +194,14 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
     )?.[0];
 
     if (studentSocketId) {
+      // 기존 협업 세션이 있다면 먼저 정리
+      const existingCollaboration = this.collaborations.get(collaborationId);
+      if (existingCollaboration) {
+        console.log(`기존 협업 세션 정리: ${collaborationId}`);
+        this.collaborations.delete(collaborationId);
+        this.collaborationSVGs.delete(collaborationId);
+      }
+
       // 1:1 협업 룸에 join (teacherSocketId와 studentSocketId를 함께 저장)
       this.collaborations.set(collaborationId, {
         teacherSocketId,
