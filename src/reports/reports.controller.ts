@@ -6,8 +6,6 @@ import {
   Param,
   Req,
   UseGuards,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { ReportsService } from './reports.service';
@@ -89,7 +87,6 @@ export class ReportsController {
    * 저장된 리포트를 삭제합니다
    */
   @Delete('saved/:reportId')
-  @HttpCode(HttpStatus.NO_CONTENT)
   async deleteSavedReport(
     @Param('reportId') reportId: string,
     @Req() req: RequestWithUser,
@@ -106,6 +103,9 @@ export class ReportsController {
       };
     }
 
-    return { success: true };
+    return {
+      success: true,
+      message: '리포트가 성공적으로 삭제되었습니다.',
+    };
   }
 }

@@ -8,6 +8,7 @@ import { RoomProblem } from '../problems/entities/room-problem.entity';
 import { Problem } from '../problems/entities/problem.entity';
 import { Submission } from '../submissions/entities/submission.entity';
 import { User } from '../users/entities/user.entity';
+import { RoomsModule } from '../rooms/rooms.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { User } from '../users/entities/user.entity';
       Submission,
       User,
     ]),
+    RoomsModule, // RoomsModule을 import하여 RoomsService 사용
   ],
   controllers: [ReportsController],
   providers: [ReportsService],
