@@ -102,3 +102,15 @@ CREATE TABLE IF NOT EXISTS room_problems (
     FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
 );
 
+-- 8) saved_reports 테이블
+CREATE TABLE IF NOT EXISTS saved_reports (
+  id           INT AUTO_INCREMENT PRIMARY KEY,
+  user_id      INT NOT NULL,
+  room_title   VARCHAR(255) NOT NULL,
+  report_data  JSON NOT NULL,
+  saved_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_saved_reports_user
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_user_id (user_id)
+);
+
