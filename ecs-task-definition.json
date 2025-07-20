@@ -6,6 +6,7 @@
   "memory": "512",
   "executionRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
+  "enableExecuteCommand": true,
   "containerDefinitions": [
     {
       "name": "coconut-backend-container",
