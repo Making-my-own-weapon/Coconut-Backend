@@ -11,7 +11,7 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: coconut-backend
-  ECS_CLUSTER: backend-cluster
+  ECS_CLUSTER: default
   ECS_SERVICE: coconut-backend-service
   ECS_TASK_DEFINITION: coconut-backend-task
 
