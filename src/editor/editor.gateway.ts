@@ -427,4 +427,22 @@ export class EditorGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .to(`room_${payload.inviteCode}`)
       .emit('student:currentProblem', payload);
   }
+
+  @SubscribeMessage('submission:result')
+  handleSubmissionResult(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      roomId: string;
+      inviteCode: string;
+      studentId: number;
+      problemId: number;
+      isCorrect: boolean;
+    },
+  ) {
+    // 같은 방의 선생님에게 브로드캐스트
+    this.server
+      .to(`room_${payload.inviteCode}`)
+      .emit('student:submissionResult', payload);
+  }
 }
