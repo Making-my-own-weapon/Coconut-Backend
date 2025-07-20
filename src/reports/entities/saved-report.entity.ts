@@ -22,6 +22,9 @@ export class SavedReport {
   @Column('json')
   report_data: any; // 리포트 전체 데이터를 JSON으로 저장
 
+  @Column({ default: 'student' })
+  report_type: 'teacher' | 'student'; // 리포트 타입 (선생님/학생)
+
   @CreateDateColumn()
   saved_at: Date;
 
