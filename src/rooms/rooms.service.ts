@@ -168,7 +168,7 @@ export class RoomsService {
       const roomName = `room_${room.inviteCode}`;
       this.editorGateway.server.to(roomName).emit('class:ended', { roomId });
       // 방 생성자(선생님)의 roomId null로 갱신
-      await this.usersService.updateUserRoomId(requesterId, null);
+      //await this.usersService.updateUserRoomId(requesterId, null);
     }
     return true;
   }
@@ -449,6 +449,7 @@ export class RoomsService {
         total_tc_count: sub.total_tc_count,
         execution_time_ms: sub.execution_time_ms,
         memory_usage_kb: sub.memory_usage_kb,
+        stdout: sub.stdout,
         created_at: sub.created_at,
         user: sub.user,
         problem: sub.problem,

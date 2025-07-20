@@ -8,10 +8,12 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Body,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request } from 'express';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 interface RequestWithUser extends Request {
   user: {
@@ -37,5 +39,20 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async leaveRoom(@Req() req: RequestWithUser): Promise<void> {
     await this.usersService.leaveRoom(req.user.id);
+  }
+
+  /** 비밀번호 변경 */
+  @Patch('me/password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async changePassword(
+    @Req() req: RequestWithUser,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
+    await this.usersService.changePassword(
+      req.user.id,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
   }
 }
