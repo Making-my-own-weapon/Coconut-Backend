@@ -449,6 +449,7 @@ export class RoomsService {
         total_tc_count: sub.total_tc_count,
         execution_time_ms: sub.execution_time_ms,
         memory_usage_kb: sub.memory_usage_kb,
+        stdout: sub.stdout,
         created_at: sub.created_at,
         user: sub.user,
         problem: sub.problem,
