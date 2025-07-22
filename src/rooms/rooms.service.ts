@@ -209,15 +209,14 @@ export class RoomsService {
 
     // 4. 기본 통계 계산
     const totalSubmissions = submissions.length;
-    const passedSubmissions = submissions.filter((s) => s.is_passed);
-    const averageSuccessRate =
-      totalSubmissions > 0
-        ? Math.round((passedSubmissions.length / totalSubmissions) * 100)
-        : 0;
 
-    // 4-1. 첫 제출에 통과한 문제 수 계산
+    // 4-1. 첫 제출에 통과한 문제 수 계산 (학생 제출만)
+    const studentIds = room.participants
+      .filter((p) => p.userType === 'student')
+      .map((p) => p.userId);
     const firstSubmissionResults = new Map<string, boolean>();
     submissions
+      .filter((s) => studentIds.includes(s.user_id))
       .sort(
         (a, b) =>
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -233,19 +232,31 @@ export class RoomsService {
       firstSubmissionResults.values(),
     ).filter((passed) => passed).length;
 
-    // 5. 평균 풀이 시간 (고정값)
-    const averageSolveTime = '0:00';
+    // 5. 평균 풀이 시간 (첫 제출에 통과한 문제 수로 대체)
+    const averageSolveTime = String(firstSubmissionPassed);
 
-    // 6. 문제별 정답률 계산
+    // 6. 문제별 정답률 계산 (한 번이라도 맞춘 학생 비율)
+    const allStudentIds = room.participants
+      .filter((p) => p.userType === 'student')
+      .map((p) => p.userId);
+
     const problemAnalysis = problems.map((problem) => {
-      const problemSubmissions = submissions.filter(
-        (s) => Number(s.problem_id) === problem.problemId,
+      // 해당 문제에 대해 한 번이라도 맞춘 학생 userId 집합
+      const passedStudentIds = new Set(
+        submissions
+          .filter(
+            (s) =>
+              Number(s.problem_id) === problem.problemId &&
+              s.is_passed === true,
+          )
+          .map((s) => s.user_id),
       );
-      const problemPassed = problemSubmissions.filter((s) => s.is_passed);
+
       const successRate =
-        problemSubmissions.length > 0
-          ? Math.round((problemPassed.length / problemSubmissions.length) * 100)
+        allStudentIds.length > 0
+          ? Math.round((passedStudentIds.size / allStudentIds.length) * 100)
           : 0;
+
       return {
         title: problem.title,
         successRate,
@@ -393,19 +404,21 @@ export class RoomsService {
           )
         : { title: 'N/A', successRate: 0 };
 
-    // 학생별 정답률 계산
+    // 학생별 정답률 계산 (한 번이라도 맞힌 문제 수 / 전체 문제 수)
     const studentSubmissions: { name: string; successRate: number }[] = [];
     const students =
       room.participants?.filter((p) => p.userType === 'student') || [];
 
     for (const student of students) {
-      const studentSubs = submissions.filter(
-        (s) => s.user_id === student.userId,
+      // 학생이 한 번이라도 맞힌 문제 id 집합
+      const correctProblems = new Set(
+        submissions
+          .filter((s) => s.user_id === student.userId && s.is_passed)
+          .map((s) => s.problem_id),
       );
-      const studentPassed = studentSubs.filter((s) => s.is_passed);
       const successRate =
-        studentSubs.length > 0
-          ? Math.round((studentPassed.length / studentSubs.length) * 100)
+        problems.length > 0
+          ? Math.round((correctProblems.size / problems.length) * 100)
           : 0;
 
       studentSubmissions.push({
@@ -413,6 +426,15 @@ export class RoomsService {
         successRate,
       });
     }
+
+    // 평균 정답률: 학생별 정답률의 평균
+    const averageSuccessRate =
+      studentSubmissions.length > 0
+        ? Math.round(
+            studentSubmissions.reduce((sum, s) => sum + s.successRate, 0) /
+              studentSubmissions.length,
+          )
+        : 0;
 
     // 수업 시간
     const classTime = room.endTime || '00:00:00';
@@ -454,6 +476,7 @@ export class RoomsService {
         user: sub.user,
         problem: sub.problem,
       })), // 제출 데이터 추가
+      problems, // 전체 문제 리스트 추가
       classTime,
       classStatus: room.status,
     };
