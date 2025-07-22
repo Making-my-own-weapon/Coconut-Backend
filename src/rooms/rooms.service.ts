@@ -233,19 +233,31 @@ export class RoomsService {
       firstSubmissionResults.values(),
     ).filter((passed) => passed).length;
 
-    // 5. 평균 풀이 시간 (고정값)
-    const averageSolveTime = '0:00';
+    // 5. 평균 풀이 시간 (첫 제출에 통과한 문제 수로 대체)
+    const averageSolveTime = String(firstSubmissionPassed);
 
-    // 6. 문제별 정답률 계산
+    // 6. 문제별 정답률 계산 (한 번이라도 맞춘 학생 비율)
+    const allStudentIds = room.participants
+      .filter((p) => p.userType === 'student')
+      .map((p) => p.userId);
+
     const problemAnalysis = problems.map((problem) => {
-      const problemSubmissions = submissions.filter(
-        (s) => Number(s.problem_id) === problem.problemId,
+      // 해당 문제에 대해 한 번이라도 맞춘 학생 userId 집합
+      const passedStudentIds = new Set(
+        submissions
+          .filter(
+            (s) =>
+              Number(s.problem_id) === problem.problemId &&
+              s.is_passed === true,
+          )
+          .map((s) => s.user_id),
       );
-      const problemPassed = problemSubmissions.filter((s) => s.is_passed);
+
       const successRate =
-        problemSubmissions.length > 0
-          ? Math.round((problemPassed.length / problemSubmissions.length) * 100)
+        allStudentIds.length > 0
+          ? Math.round((passedStudentIds.size / allStudentIds.length) * 100)
           : 0;
+
       return {
         title: problem.title,
         successRate,
