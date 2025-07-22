@@ -313,6 +313,7 @@ export class ReportsService {
         user: sub.user,
         problem: sub.problem,
       })),
+      problems, // 전체 문제 리스트 추가
       classTime: room.endTime || '00:00:00',
       classStatus: room.status,
     };
@@ -589,6 +590,7 @@ export class ReportsService {
         user: sub.user,
         problem: sub.problem,
       })),
+      problems, // 전체 문제 리스트 추가
       classTime: room.endTime || '00:00:00',
       classStatus: room.status,
     };
