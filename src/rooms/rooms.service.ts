@@ -14,6 +14,10 @@ import { UsersService } from '../users/users.service';
 import { Submission } from '../submissions/entities/submission.entity';
 import { EditorGateway } from '../editor/editor.gateway';
 
+type User = {
+  name?: string;
+};
+
 @Injectable()
 export class RoomsService {
   constructor(
@@ -315,7 +319,7 @@ export class RoomsService {
             const studentPassed = studentSubmissions.filter(
               (s) => s.is_passed,
             ).length;
-            const student = studentSubmissions[0]?.user;
+            const student = studentSubmissions[0]?.user as User;
 
             return {
               studentId,
@@ -439,6 +443,39 @@ export class RoomsService {
     // 수업 시간
     const classTime = room.endTime || '00:00:00';
 
+    // 학생별 첫 제출에 통과한 문제 목록 및 개수 집계
+    type Submission = {
+      is_passed: boolean;
+      problem_id: string | number;
+      user_id: number;
+      user?: any;
+    };
+    const studentFirstPassedProblems = students.map((student) => {
+      // 해당 학생의 제출 중 (문제별로 첫 제출만)
+      const studentSubmissions = submissions
+        .filter((s) => s.user_id === student.userId)
+        .sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+        );
+      const firstSubmissionsMap = new Map();
+      studentSubmissions.forEach((submission) => {
+        if (!firstSubmissionsMap.has(submission.problem_id)) {
+          firstSubmissionsMap.set(submission.problem_id, submission);
+        }
+      });
+      // 첫 제출이 통과한 문제만 추출
+      const firstPassedProblems = Array.from(firstSubmissionsMap.values())
+        .filter((sub) => (sub as Submission).is_passed)
+        .map((sub) => (sub as Submission).problem_id);
+      return {
+        userId: student.userId,
+        name: student.name,
+        firstPassedProblems,
+        count: firstPassedProblems.length,
+      };
+    });
+
     return {
       roomTitle: room.title,
       averageSuccessRate,
@@ -479,6 +516,7 @@ export class RoomsService {
       problems, // 전체 문제 리스트 추가
       classTime,
       classStatus: room.status,
+      studentFirstPassedProblems, // 학생별 첫 제출 통과 문제 목록/개수 추가
     };
   }
 }

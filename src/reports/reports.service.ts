@@ -132,6 +132,35 @@ export class ReportsService {
       firstSubmissionResults.values(),
     ).filter((passed) => passed).length;
 
+    // 첫 제출에 통과한 문제 집계 (학생 본인만)
+    type Submission = {
+      is_passed: boolean;
+      problem_id: string | number;
+      user_id: number;
+    };
+    const firstSubmissionsMap = new Map();
+    submissions
+      .sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      )
+      .forEach((submission) => {
+        if (!firstSubmissionsMap.has(submission.problem_id)) {
+          firstSubmissionsMap.set(submission.problem_id, submission);
+        }
+      });
+    const firstPassedProblems = Array.from(firstSubmissionsMap.values())
+      .filter((sub) => (sub as Submission).is_passed)
+      .map((sub) => (sub as Submission).problem_id);
+    const studentFirstPassedProblems = [
+      {
+        userId,
+        name: student.name,
+        firstPassedProblems,
+        count: firstPassedProblems.length,
+      },
+    ];
+
     // 문제별 정답률 계산
     const problemAnalysis = problems.map((problem) => {
       const problemSubmissions = submissions.filter(
@@ -297,6 +326,7 @@ export class ReportsService {
           successRate: averageSuccessRate,
         },
       ],
+      studentFirstPassedProblems, // 추가!
       submissions: submissions.map((sub) => ({
         submission_id: sub.submission_id,
         user_id: sub.user_id,
