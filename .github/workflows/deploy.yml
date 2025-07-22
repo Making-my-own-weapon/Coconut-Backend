@@ -1,7 +1,7 @@
 # ecs를 사용한 자동 배포 예시
-
-name: Deploy to ECS (Rolling Update)
  
+name: Deploy to ECS (Rolling Update)
+
 on:
   push:
     branches:
@@ -11,8 +11,8 @@ on:
 env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: coconut-backend
-  ECS_CLUSTER: backend-cluster
-  ECS_SERVICE: coconut-backend-service
+  ECS_CLUSTER: default
+  ECS_SERVICE: coconut-backend-service-new
   ECS_TASK_DEFINITION: coconut-backend-task
 
 jobs:

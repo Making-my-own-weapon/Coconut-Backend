@@ -1,16 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('health')
-@Public()
 export class HealthController {
   @Get()
   @Public()
-  check() {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: 'coconut-backend',
-    };
+  check(@Res() res: Response) {
+    res.status(200).send('healthy\n');
   }
 }

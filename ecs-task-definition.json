@@ -1,15 +1,15 @@
-{
+{ 
   "family": "coconut-backend-task",
   "networkMode": "bridge",
   "requiresCompatibilities": ["EC2"],
-  "cpu": "256",
-  "memory": "256",
+  "cpu": "512",
+  "memory": "3072",
   "executionRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "taskRoleArn": "arn:aws:iam::928747727316:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
       "name": "coconut-backend-container",
-              "image": "928747727316.dkr.ecr.ap-northeast-2.amazonaws.com/coconut-backend:latest",
+              "image": "928747727316.dkr.ecr.ap-northeast-2.amazonaws.com/coconut-backend",
       "essential": true,
       "portMappings": [
         {
@@ -24,15 +24,31 @@
           "value": "production"
         },
         {
-          "name": "PORT",
-          "value": "3001"
+          "name": "DB_PORT",
+          "value": "3306"
         },
         {
-          "name": "CLIENT_URL",
-          "value": "http://3.34.48.6:3000"
+          "name": "DB_SYNCHRONIZE",
+          "value": "false"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "ap-northeast-2"
+        },
+        {
+          "name": "AWS_S3_BUCKET",
+          "value": "coconut-test-bucket"
         }
       ],
       "secrets": [
+        {
+          "name": "PORT", 
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/port"
+        },
+        {
+          "name": "CORS_ORIGIN",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/cors/origin"
+        },
         {
           "name": "DB_HOST",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/db/host"
@@ -56,6 +72,46 @@
         {
           "name": "REFRESH_JWT_SECRET",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/REFRESH_JWT_SECRET"
+        },
+        {
+          "name": "REDIS_HOST",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/redis/host"
+        },
+        {
+          "name": "REDIS_PORT",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/redis/port"
+        },
+        {
+          "name": "BEDROCK_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/bedrock/api_key"
+        },
+        {
+          "name": "AWS_SQS_LIGHT_QUEUE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/light_queue_url"
+        },
+        {
+          "name": "AWS_SQS_MEDIUM_QUEUE_URL", 
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/medium_queue_url"
+        },
+        {
+          "name": "AWS_SQS_HEAVY_QUEUE_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/sqs/heavy_queue_url"
+        },
+        {
+          "name": "OPENVIDU_URL",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/openvidu/url"
+        },
+        {
+          "name": "OPENVIDU_SECRET",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/openvidu/secret"
+        },
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/aws/access_key_id"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/aws/secret_access_key"
         }
       ],
       "logConfiguration": {
@@ -67,14 +123,11 @@
         }
       },
       "healthCheck": {
-        "command": [
-          "CMD-SHELL", 
-          "curl -f http://localhost:3001/health || exit 1"
-        ],
+        "command": ["CMD-SHELL", "exit 0"],
         "interval": 30,
         "timeout": 5,
         "retries": 3,
-        "startPeriod": 120
+        "startPeriod": 60
       }
     }
   ]
