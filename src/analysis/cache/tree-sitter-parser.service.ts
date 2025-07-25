@@ -65,6 +65,52 @@ export class TreeSitterParserService {
   }
 
   /**
+   * 타임아웃이 적용된 코드 파싱
+   */
+  async parseCodeWithTimeout(
+    code: string,
+    timeoutMs: number = 1000,
+  ): Promise<TreeSitterTree> {
+    try {
+      const parseStart = Date.now();
+
+      // 파싱 작업을 Promise로 래핑
+      const parsePromise = new Promise<TreeSitterTree>((resolve, reject) => {
+        try {
+          const tree = this.parser.parse(code);
+          resolve(tree);
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      });
+
+      // 타임아웃 Promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Tree-sitter parsing timeout after ${timeoutMs}ms`));
+        }, timeoutMs);
+      });
+
+      // Promise.race로 타임아웃 적용
+      const tree = await Promise.race([parsePromise, timeoutPromise]);
+
+      const parseEnd = Date.now();
+      this.logger.log(
+        `🌳 Tree-sitter parsing with timeout took: ${parseEnd - parseStart}ms`,
+      );
+
+      return tree;
+    } catch (error) {
+      const parserError = error as ParserError;
+      this.logger.error(
+        'Tree-sitter parsing with timeout failed:',
+        parserError.message,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * AST 노드에서 구조적 지문 추출
    */
   extractStructuralFingerprint(node: TreeSitterNode): string {
@@ -75,9 +121,6 @@ export class TreeSitterParserService {
 
       this.logger.log(
         `🔍 Structural fingerprint extraction took: ${fingerprintEnd - fingerprintStart}ms`,
-      );
-      this.logger.log(
-        `🔍 Fingerprint preview: ${fingerprint.substring(0, 100)}...`,
       );
 
       return fingerprint;
