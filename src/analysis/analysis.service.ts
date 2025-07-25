@@ -323,11 +323,7 @@ ${studentCode}
         );
 
         // 최후 수단: 기본 상세 분석 응답
-        const fallbackResult = this.getFallbackDetailedResponse(
-          problemId,
-          studentCode,
-          staticAnalysisResult,
-        );
+        const fallbackResult = this.getFallbackDetailedResponse();
         const totalTime = Date.now() - startTime;
         this.logger.log(
           `🏁 Total Detailed Analysis Time (Fallback): ${totalTime}ms`,
