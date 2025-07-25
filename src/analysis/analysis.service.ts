@@ -10,6 +10,7 @@ import { RealtimeAnalysisResponseDto } from './dto/realtime-analysis.dto';
 import { DetailedAnalysisResponseDto } from './dto/detailed-analysis.dto';
 import { Problem } from '../problems/entities/problem.entity';
 import { AnalysisCacheService } from './cache/analysis-cache.service';
+import { GeminiService } from './gemini.service';
 
 // Bedrock 응답 타입 정의
 interface BedrockResponseBody {
@@ -33,6 +34,7 @@ export class AnalysisService {
   constructor(
     private configService: ConfigService,
     private cacheService: AnalysisCacheService,
+    private geminiService: GeminiService,
     @InjectRepository(Problem)
     private problemRepository: Repository<Problem>,
   ) {
@@ -113,6 +115,7 @@ export class AnalysisService {
       problemId,
       studentCode,
     );
+
     if (cached) {
       const totalTime = Date.now() - startTime;
       this.logger.log(`✅ Cache HIT - Total time: ${totalTime}ms`);
@@ -130,6 +133,7 @@ export class AnalysisService {
 3. 간단한 피드백 제공
 4. 각 항목은 50자 이하로 작성한다
 5. 모든 문장은 "~니다"으로 끝나야 함.
+6. 변수명, 주석은 무시하고, 로직만 판단.
 
 출력 형식 (JSON만):
 {
@@ -147,14 +151,6 @@ ${studentCode}
 \`\`\``;
 
     this.logger.log(`🤖 Calling Amazon Bedrock Nova Micro...`);
-    this.logger.log(`📤 Sending to Bedrock:`);
-    this.logger.log(`   - Problem ID: ${problemId}`);
-    this.logger.log(
-      `   - Problem: ${problemDescription.substring(0, 100)}${problemDescription.length > 100 ? '...' : ''}`,
-    );
-    this.logger.log(
-      `   - Student Code: ${studentCode.substring(0, 100)}${studentCode.length > 100 ? '...' : ''}`,
-    );
 
     const aiStart = Date.now();
     const command = new InvokeModelCommand({
@@ -280,6 +276,77 @@ ${studentCode}
 
     const problemDescription = problem.description;
 
+    // Nova Pro 호출 시도 (타임아웃 8초)
+    try {
+      const novaResult = await Promise.race<DetailedAnalysisResponseDto>([
+        this.callNovaDetailed(
+          problemId,
+          studentCode,
+          problemDescription,
+          staticAnalysisResult,
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Nova Pro timeout')), 8000),
+        ),
+      ]);
+
+      const totalTime = Date.now() - startTime;
+      this.logger.log(`🏁 Total Detailed Analysis Time (Nova): ${totalTime}ms`);
+      console.log(`🏁 Total Detailed Analysis Time (Nova): ${totalTime}ms`);
+      return novaResult;
+    } catch (novaError) {
+      this.logger.warn(`Nova Pro failed: ${(novaError as Error).message}`);
+
+      // Nova Pro 실패 시 Gemini Pro 호출 (타임아웃 6초)
+      try {
+        const geminiResult = await Promise.race<DetailedAnalysisResponseDto>([
+          this.geminiService.callGeminiDetailed(
+            problemId,
+            studentCode,
+            problemDescription,
+            staticAnalysisResult,
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Gemini Pro timeout')), 6000),
+          ),
+        ]);
+
+        const totalTime = Date.now() - startTime;
+        this.logger.log(
+          `🏁 Total Detailed Analysis Time (Gemini): ${totalTime}ms`,
+        );
+        console.log(`🏁 Total Detailed Analysis Time (Gemini): ${totalTime}ms`);
+        return geminiResult;
+      } catch (geminiError) {
+        this.logger.error(
+          `Both Nova Pro and Gemini Pro failed: ${(geminiError as Error).message}`,
+        );
+
+        // 최후 수단: 기본 상세 분석 응답
+        const fallbackResult = this.getFallbackDetailedResponse(
+          problemId,
+          studentCode,
+          staticAnalysisResult,
+        );
+        const totalTime = Date.now() - startTime;
+        this.logger.log(
+          `🏁 Total Detailed Analysis Time (Fallback): ${totalTime}ms`,
+        );
+        console.log(
+          `🏁 Total Detailed Analysis Time (Fallback): ${totalTime}ms`,
+        );
+        return fallbackResult;
+      }
+    }
+  }
+
+  private async callNovaDetailed(
+    problemId: string,
+    studentCode: string,
+    problemDescription: string,
+    staticAnalysisResult: string,
+  ): Promise<DetailedAnalysisResponseDto> {
+    const startTime = Date.now();
     // 상세 분석용 프롬프트
     const detailedSystemPrompt = `# [역할]
 너는 세계 최고의 알고리즘 강사이자 친절한 코드 리뷰어 AI다. 너의 임무는 선생님이 학생의 코드를 빠르게 이해하고, 학생의 문제 해결 전략을 깊이 있게 분석하여 건설적인 피드백을 제공하는 것이다.
@@ -419,5 +486,17 @@ ${staticAnalysisResult}`;
     console.log(`🏁 Total Detailed Analysis Time: ${totalTime}ms`);
 
     return analysisResult;
+  }
+
+  private getFallbackDetailedResponse(): DetailedAnalysisResponseDto {
+    return {
+      analysis: {
+        approach: '상세 분석 서비스 일시 중단',
+        pros: '분석을 시도했습니다',
+        cons: 'AI 서비스 연결 실패',
+      },
+      recommendation:
+        '시스템 점검 중입니다. 잠시 후 다시 시도해주세요. 정적 분석 결과는 정상적으로 확인할 수 있습니다.',
+    };
   }
 }
