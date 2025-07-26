@@ -1,10 +1,21 @@
-import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
+import * as cookieParser from 'cookie-parser';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // .env의 PORT 변수를 사용하고, 없으면 3001번 포트 사용
-  // '0.0.0.0'으로 외부 접속 허용 (Docker 컨테이너 외부에서 접속하기 위함)
-  await app.listen(process.env.PORT ?? 3001, '0.0.0.0');
+
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3005',
+    credentials: true,
+  });
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.use((cookieParser as unknown as () => any)());
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(new JwtAuthGuard(reflector));
+  await app.listen(process.env.PORT ?? 3001);
 }
 void bootstrap();

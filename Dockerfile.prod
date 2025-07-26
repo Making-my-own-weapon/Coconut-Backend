@@ -1,0 +1,23 @@
+FROM node:20-alpine
+ 
+WORKDIR /app
+
+# 패키지 설치
+COPY package*.json ./
+RUN npm ci
+
+# 소스 코드 복사
+COPY . .
+
+# 빌드
+RUN npm run build
+
+# 프로덕션 의존성만 남기고 재설치
+RUN rm -rf node_modules
+RUN npm ci --omit=dev
+
+# 포트 노출
+EXPOSE 3001
+
+# 프로덕션 실행
+CMD ["node", "dist/main.js"] 
