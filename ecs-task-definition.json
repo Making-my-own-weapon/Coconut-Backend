@@ -1,4 +1,4 @@
-{ 
+{  
   "family": "coconut-backend-task",
   "networkMode": "bridge",
   "requiresCompatibilities": ["EC2"],
@@ -112,6 +112,10 @@
         {
           "name": "AWS_SECRET_ACCESS_KEY",
           "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/aws/secret_access_key"
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "valueFrom": "arn:aws:ssm:ap-northeast-2:928747727316:parameter/coconut/gemini/api_key"
         }
       ],
       "logConfiguration": {
